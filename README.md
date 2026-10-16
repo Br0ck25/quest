@@ -2,8 +2,8 @@
 
 > **Responsive Browser RPG for Middle Grades (Grades 6–8) preparing for KAAC Governor's Cup Academic Competition.**
 
-[![Tests](https://img.shields.io/badge/tests-133%20passing-brightgreen)](#testing)
-[![Phase](https://img.shields.io/badge/phase-8%20accessibility%20%26%20device%20polish-blue)](#phase-8-accessibility-usability--device-polish-wcag-aa)
+[![Tests](https://img.shields.io/badge/tests-143%20passing-brightgreen)](#testing)
+[![Phase](https://img.shields.io/badge/phase-9%20admin%20content%20review-blue)](#phase-9-admin-content-review-workflow--verified-question-sets)
 [![Cloudflare Workers](https://img.shields.io/badge/deployment-Cloudflare%20Workers-orange)](#deployment)
 
 ---
@@ -266,7 +266,36 @@ Phase 8 elevates QUEST: Kentucky to enterprise educational accessibility standar
 
 ---
 
-## 10. Architecture Principles
+## 10. Phase 9: Admin Content Review Workflow & Verified Question Sets
+
+Phase 9 establishes an authoritative, role-gated content review and lifecycle governance pipeline (`src/server/content-review.js`) ensuring that only vetted, rights-approved KAAC curriculum items reach students:
+
+### Server-Authoritative Role Enforcement
+- **Protected Roles**: Access strictly gated to authorized roles (`reviewer`, `content_admin`, `super_admin`) via `X-Reviewer-Role` request headers.
+- **Ordinary User Isolation**: Unauthenticated users or student roles (`role: student`, `role: guest`) are rejected with `HTTP 403 Forbidden`.
+- **Answer Key Secrecy**: While public endpoints (`/api/questions`) strip answer keys, authorized admin routes reveal full answer keys and explanations solely for pedagogical verification.
+
+### Comprehensive Question Lifecycle Management
+- **List & Inspection with Review Aids**: View questions filtered by subject, grade band, review status, and active state, augmented with real-time duplicate similarity warnings (`detectDuplicates`).
+- **Rights Gate Enforcement**: The approval pipeline blocks questions whose rights status is `pending` or `rejected`. Questions cannot enter active rotation without explicit rights clearance.
+- **Approval (`POST /api/admin/questions/:id/approve`)**: Sets `reviewStatus = 'approved'`, activates serving (`active = 1`), and records reviewer ID with timestamp.
+- **Rejection (`POST /api/admin/questions/:id/reject`)**: Marks `reviewStatus = 'rejected'`, deactivates question (`active = 0`), and records rejection rationale.
+- **Correction & Version Bumping (`POST /api/admin/questions/:id/correct`)**: Archives historical snapshots into `question_versions`, validates candidate schema, bumps version (`version + 1`), and updates question text without altering stable IDs.
+- **Retirement from Active Rotation (`POST /api/admin/questions/:id/retire`)**: Sets `reviewStatus = 'retired'` and `active = 0`. Retired questions are removed from student rotations while preserving stable IDs and relational integrity for historical student attempt audits.
+- **Immutable Audit Trail (`GET /api/admin/questions/:id/history`)**: Chronological audit trail tracking every reviewer ID, action, state delta, and review note.
+
+### Phase 9 API Endpoints
+- `GET /api/admin/questions`: List questions with duplicate warnings and status filters (role-gated).
+- `GET /api/admin/questions/:id`: Fetch question details, answer key, and duplicate scores (role-gated).
+- `POST /api/admin/questions/:id/approve`: Approve question for active rotation (role-gated).
+- `POST /api/admin/questions/:id/reject`: Reject question and record rationale (role-gated).
+- `POST /api/admin/questions/:id/correct`: Correct question, archive snapshot, and bump version (role-gated).
+- `POST /api/admin/questions/:id/retire`: Retire question from active student rotation (role-gated).
+- `GET /api/admin/questions/:id/history`: Retrieve chronological review audit history (role-gated).
+
+---
+
+## 11. Architecture Principles
 
 - **Zero External Raster Images**: 100% procedural Canvas 2D sprites & inline SVG icons.
 - **Zero External Audio Files**: Synthesized procedural Web Audio API sound effects.

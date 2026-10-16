@@ -275,6 +275,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
     - Expanded contract tests in `tests/contract/worker.test.js` (health phase 8, accessibility route).
     - Total test suite expanded from 126 to 133 passing tests (100% pass rate across 14 test suites).
     - Compiled standalone artifact [`worker.js`](file:///c:/Users/James/Downloads/Quest/worker.js) compiles cleanly to 1,496 lines (well below the 2,000 line ceiling).
+- **Phase 9: Admin Content Review Workflow and Verified Question Sets**:
+  - **D1 Content Review Schema (`migrations/0005_content_review.sql`, `migrations/0000_complete_schema.sql`)**:
+    - Created `question_reviews` table logging chronological reviewer actions (`approve`, `reject`, `retire`, `correct`), rationale, and timestamps.
+    - Created `question_versions` table capturing immutable historical question snapshots on correction or retirement.
+  - **Authoritative Review Engine (`src/server/content-review.js`)**:
+    - Built role-based access verification (`isAuthorizedReviewer`) enforcing permissions across `reviewer`, `content_admin`, and `super_admin` tiers.
+    - Implemented Rights Gate enforcement: questions with non-approved rights status (`pending`, `rejected`) cannot be approved for active student rotation.
+    - Added duplicate detection similarity analysis (`detectDuplicates`) flagging high-similarity warnings based on token intersection and normalized prompt comparisons.
+    - Implemented question correction workflow with strict schema re-validation, immutable snapshot archiving in `question_versions`, and automatic version incrementing (`version + 1`).
+    - Implemented safe retirement workflow setting `active = 0` and `review_status = 'retired'` while preserving database records to maintain referential integrity for past student attempt audits.
+  - **Edge Worker Content Review Endpoints (`src/server/worker.js`, `scripts/build.js`)**:
+    - `/api/health` updated to Phase 9 with mode `content-review`.
+    - `GET /api/admin/questions`: lists catalog questions with duplicate warnings and status filters (role gated).
+    - `GET /api/admin/questions/:id`: retrieves complete question record with answer key and full version history (role gated).
+    - `POST /api/admin/questions/:id/approve`: approves question for student rotation subject to Rights Gate (role gated).
+    - `POST /api/admin/questions/:id/reject`: rejects question with documented rationale (role gated).
+    - `POST /api/admin/questions/:id/correct`: applies corrections, snapshots previous state, and bumps version (role gated).
+    - `POST /api/admin/questions/:id/retire`: deactivates question while preserving student attempt audit trails (role gated).
+    - `GET /api/admin/questions/:id/history`: queries immutable review action audit log (role gated).
+  - **Testing Integrity & Line Budget**:
+    - Added unit test suite `tests/unit/content-review.test.js` (7 comprehensive tests).
+    - Expanded contract tests in `tests/contract/worker.test.js` covering role gate authorization, answer key secrecy, approve, correct, retire, and history endpoints.
+    - Total test suite expanded from 133 to 143 passing tests (100% pass rate across 15 test suites).
+    - Standalone generated artifact [`worker.js`](file:///c:/Users/James/Downloads/Quest/worker.js) compiles cleanly to 1,651 lines (strictly under the 2,000 line ceiling).
 
 
 

@@ -27,6 +27,7 @@
 | [`migrations/0002_progression_and_rewards.sql`](file:///c:/Users/James/Downloads/Quest/migrations/0002_progression_and_rewards.sql) | D1 SQL migration: user progression tracking and quest completion records. |
 | [`migrations/0003_multiplayer_rooms.sql`](file:///c:/Users/James/Downloads/Quest/migrations/0003_multiplayer_rooms.sql) | D1 SQL migration: co-op multiplayer room session and participant tables. |
 | [`migrations/0004_duels.sql`](file:///c:/Users/James/Downloads/Quest/migrations/0004_duels.sql) | D1 SQL migration: 1v1 knowledge duels matches and round responses. |
+| [`migrations/0005_content_review.sql`](file:///c:/Users/James/Downloads/Quest/migrations/0005_content_review.sql) | D1 SQL migration: question review audit logs and question version snapshots. |
 | [`src/data/constants.js`](file:///c:/Users/James/Downloads/Quest/src/data/constants.js) | Centralized project constants (dimensions, palette tokens, subject mappings, intervals). |
 | [`src/data/game-data.js`](file:///c:/Users/James/Downloads/Quest/src/data/game-data.js) | Child-safe pseudonymous handle generator, starter quests, and starter inventory. |
 | [`src/data/progression.js`](file:///c:/Users/James/Downloads/Quest/src/data/progression.js) | Level curve, anti-farming question rewards, cosmetic catalog, and economic balance simulation. |
@@ -44,6 +45,7 @@
 | [`src/server/db.js`](file:///c:/Users/James/Downloads/Quest/src/server/db.js) | Cloudflare D1 database persistence adapter with in-memory fallback for attempts & mastery. |
 | [`src/server/rooms.js`](file:///c:/Users/James/Downloads/Quest/src/server/rooms.js) | Authoritative multiplayer co-op room engine, lobby sync, boss combat, and rate limiting. |
 | [`src/server/duels.js`](file:///c:/Users/James/Downloads/Quest/src/server/duels.js) | Authoritative 1v1 duel engine, choice shuffling, delayed reveals, and recap stats. |
+| [`src/server/content-review.js`](file:///c:/Users/James/Downloads/Quest/src/server/content-review.js) | Admin content review service, role checking, rights verification, versioning, and retirement. |
 | [`src/server/worker.js`](file:///c:/Users/James/Downloads/Quest/src/server/worker.js) | Cloudflare Worker edge handler serving HTML shell, PWA manifest, service worker, and API. |
 | [`tests/unit/constants.test.js`](file:///c:/Users/James/Downloads/Quest/tests/unit/constants.test.js) | Unit test validating centralized constants against design system and curriculum specifications. |
 | [`tests/unit/game-data.test.js`](file:///c:/Users/James/Downloads/Quest/tests/unit/game-data.test.js) | Unit test validating pseudonymous handle generation, starter quests, and default profile. |
@@ -59,6 +61,7 @@
 | [`tests/unit/rooms.test.js`](file:///c:/Users/James/Downloads/Quest/tests/unit/rooms.test.js) | Unit test validating multiplayer co-op room engine, boss combat, preset emotes, and rate limiting. |
 | [`tests/unit/duels.test.js`](file:///c:/Users/James/Downloads/Quest/tests/unit/duels.test.js) | Unit test validating 1v1 duels, choice order shuffling, delayed reveals, and recap scoring. |
 | [`tests/unit/accessibility.test.js`](file:///c:/Users/James/Downloads/Quest/tests/unit/accessibility.test.js) | Unit test validating WCAG AA contrast, touch targets, non-color cues, text scale, reduced motion, and focus trapping. |
+| [`tests/unit/content-review.test.js`](file:///c:/Users/James/Downloads/Quest/tests/unit/content-review.test.js) | Unit test validating admin reviewer roles, rights gates, versioning, corrections, and retirement. |
 | [`tests/contract/worker.test.js`](file:///c:/Users/James/Downloads/Quest/tests/contract/worker.test.js) | Contract test validating Worker edge routes (health, root HTML, manifest, sw.js, questions, answers, progress, review/due, rooms, duels). |
 | [`worker.js`](file:///c:/Users/James/Downloads/Quest/worker.js) | **GENERATED BUILD ARTIFACT** (Do not edit directly; copy-paste target for Cloudflare). |
 | [`QUEST_Kentucky_Complete_Game_Plan_and_AI_Prompts.md`](file:///c:/Users/James/Downloads/Quest/QUEST_Kentucky_Complete_Game_Plan_and_AI_Prompts.md) | Master game design specification, 16 vertical slice implementation prompts, and roadmap. |

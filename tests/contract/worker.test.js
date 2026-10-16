@@ -14,9 +14,9 @@ test('Worker health route returns ok and phase status', async () => {
   assert.equal(data.status, 'ok');
   assert.equal(data.game, 'QUEST: Kentucky');
   assert.equal(data.gradeBand, '6-8');
-  assert.equal(data.phase, 8);
-  assert.equal(data.mode, 'accessibility-polish');
-  assert.equal(data.accessibility, true);
+  assert.equal(data.phase, 9);
+  assert.equal(data.mode, 'content-review');
+  assert.equal(data.adminReview, true);
 });
 
 test('Worker accessibility route returns WCAG AA compliance metadata', async () => {
@@ -697,6 +697,112 @@ test('Worker blocks brute force guessing of duel codes with 429 status', async (
   assert.equal(blockedRes.status, 429);
   const blockedData = await blockedRes.json();
   assert.equal(blockedData.rateLimited, true);
+});
+
+test('Worker enforces role-based access control on /api/admin/questions', async () => {
+  // 1. Missing role returns 403
+  const noRoleReq = new Request('http://localhost/api/admin/questions');
+  const noRoleRes = await worker.fetch(noRoleReq, {}, {});
+  assert.equal(noRoleRes.status, 403);
+  const noRoleData = await noRoleRes.json();
+  assert.match(noRoleData.error, /Forbidden: Requires authorized reviewer role/);
+
+  // 2. Student role returns 403
+  const studentReq = new Request('http://localhost/api/admin/questions', {
+    headers: { 'x-reviewer-role': 'student' },
+  });
+  const studentRes = await worker.fetch(studentReq, {}, {});
+  assert.equal(studentRes.status, 403);
+
+  // 3. Authorized reviewer role succeeds with 200
+  const reviewerReq = new Request('http://localhost/api/admin/questions', {
+    headers: { 'x-reviewer-role': 'reviewer' },
+  });
+  const reviewerRes = await worker.fetch(reviewerReq, {}, {});
+  assert.equal(reviewerRes.status, 200);
+  const data = await reviewerRes.json();
+  assert.ok(data.count > 0);
+  assert.ok(Array.isArray(data.questions));
+  // Reviewer can see answerKey
+  assert.ok(data.questions[0].answerKey);
+});
+
+test('Worker maintains Answer Key Secrecy: public endpoints omit answerKey while admin endpoint provides it', async () => {
+  // Public question delivery
+  const publicReq = new Request('http://localhost/api/questions');
+  const publicRes = await worker.fetch(publicReq, {}, {});
+  const publicData = await publicRes.json();
+  for (const q of publicData.questions) {
+    assert.equal(q.answerKey, undefined, 'Public questions must NEVER leak answerKey');
+  }
+
+  // Admin question inspection
+  const targetId = publicData.questions[0].id;
+  const adminReq = new Request(`http://localhost/api/admin/questions/${targetId}`, {
+    headers: { 'x-reviewer-role': 'content_admin' },
+  });
+  const adminRes = await worker.fetch(adminReq, {}, {});
+  assert.equal(adminRes.status, 200);
+  const adminData = await adminRes.json();
+  assert.ok(adminData.question.answerKey, 'Authorized reviewer must receive full answerKey for verification');
+  assert.ok(Array.isArray(adminData.duplicateWarnings));
+});
+
+test('Worker handles question review actions: approve, correct, and retire with audit trail', async () => {
+  const targetId = 'syn_sci_001';
+
+  // 1. Approve
+  const approveReq = new Request(`http://localhost/api/admin/questions/${targetId}/approve`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-reviewer-role': 'reviewer', 'x-reviewer-id': 'rev_test' },
+    body: JSON.stringify({ note: 'Passed KAAC review' }),
+  });
+  const approveRes = await worker.fetch(approveReq, {}, {});
+  assert.equal(approveRes.status, 200);
+  const approveData = await approveRes.json();
+  assert.equal(approveData.success, true);
+  assert.equal(approveData.question.reviewStatus, 'approved');
+
+  // 2. Correct and bump version
+  const correctReq = new Request(`http://localhost/api/admin/questions/${targetId}/correct`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-reviewer-role': 'content_admin', 'x-reviewer-id': 'rev_admin' },
+    body: JSON.stringify({
+      updates: { explanation: 'Updated explanation with complete mathematical derivation.' },
+      note: 'Added proof steps',
+    }),
+  });
+  const correctRes = await worker.fetch(correctReq, {}, {});
+  assert.equal(correctRes.status, 200);
+  const correctData = await correctRes.json();
+  assert.equal(correctData.success, true);
+  assert.ok(correctData.newVersion >= 2);
+
+  // 3. Retire
+  const retireReq = new Request(`http://localhost/api/admin/questions/${targetId}/retire`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-reviewer-role': 'super_admin', 'x-reviewer-id': 'rev_super' },
+    body: JSON.stringify({ reason: 'Replaced with 2027 standard item' }),
+  });
+  const retireRes = await worker.fetch(retireReq, {}, {});
+  assert.equal(retireRes.status, 200);
+  const retireData = await retireRes.json();
+  assert.equal(retireData.success, true);
+  assert.equal(retireData.question.active, false);
+  assert.equal(retireData.question.reviewStatus, 'retired');
+
+  // 4. Retrieve audit history
+  const historyReq = new Request(`http://localhost/api/admin/questions/${targetId}/history`, {
+    headers: { 'x-reviewer-role': 'reviewer' },
+  });
+  const historyRes = await worker.fetch(historyReq, {}, {});
+  assert.equal(historyRes.status, 200);
+  const historyData = await historyRes.json();
+  assert.ok(historyData.history.length >= 3);
+  const actions = historyData.history.map((h) => h.action);
+  assert.ok(actions.includes('approve'));
+  assert.ok(actions.includes('correct'));
+  assert.ok(actions.includes('retire'));
 });
 
 

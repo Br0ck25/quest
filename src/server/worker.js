@@ -8,6 +8,7 @@ import { DatabaseAdapter } from './db.js';
 import { RoomManager, PRESET_EMOTES, ROOM_STATES } from './rooms.js';
 import { DuelManager, DUEL_STATES } from './duels.js';
 import { GAME_CSS } from '../client/styles.js';
+import { QuestionReviewService, isAuthorizedReviewer } from './content-review.js';
 
 // In-memory catalog, database adapter, and idempotency store for Cloudflare edge worker
 const QUESTION_CATALOG = [...SYNTHETIC_QUESTIONS];
@@ -15,6 +16,7 @@ const IDEMPOTENCY_STORE = new Map();
 const defaultDb = new DatabaseAdapter();
 const defaultRoomManager = new RoomManager();
 const defaultDuelManager = new DuelManager();
+const defaultReviewService = new QuestionReviewService(QUESTION_CATALOG);
 
 export function createManifest() {
   const svgIcon192 = `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192"><rect width="192" height="192" rx="36" fill="${PALETTE.BG_DARK}"/><polygon points="96 28 156 64 156 128 96 164 36 128 36 64" fill="${PALETTE.SURFACE}" stroke="${PALETTE.BORDER_FOCUS}" stroke-width="8"/><circle cx="96" cy="96" r="32" fill="${PALETTE.MATH}"/><polygon points="96 74 114 108 78 108" fill="${PALETTE.GOLD}"/></svg>`;
@@ -159,9 +161,9 @@ export default {
         headers: { 'Content-Type': 'application/json', ...securityHeaders },
       });
 
-    // Health check endpoint (Phase 8: Accessibility & Device Polish)
+    // Health check endpoint (Phase 9: Admin Content Review)
     if (url.pathname === '/api/health') {
-      return json({ status: 'ok', game: 'QUEST: Kentucky', gradeBand: '6-8', phase: 8, mode: 'accessibility-polish', accessibility: true });
+      return json({ status: 'ok', game: 'QUEST: Kentucky', gradeBand: '6-8', phase: 9, mode: 'content-review', adminReview: true });
     }
 
     // Accessibility metadata & verification endpoint
@@ -265,6 +267,79 @@ export default {
         });
       } catch {
         return json({ error: 'Invalid JSON payload' }, 400);
+      }
+    }
+
+    // Admin Content Review: List Questions with Duplicate Warnings & Filters
+    if (url.pathname === '/api/admin/questions' && request.method === 'GET') {
+      const role = request.headers.get('x-reviewer-role');
+      if (!isAuthorizedReviewer(role)) {
+        return json({ error: 'Forbidden: Requires authorized reviewer role' }, 403);
+      }
+
+      const filters = {};
+      if (url.searchParams.has('subject')) filters.subject = url.searchParams.get('subject');
+      if (url.searchParams.has('gradeBand')) filters.gradeBand = url.searchParams.get('gradeBand');
+      if (url.searchParams.has('reviewStatus')) filters.reviewStatus = url.searchParams.get('reviewStatus');
+      if (url.searchParams.has('rightsStatus')) filters.rightsStatus = url.searchParams.get('rightsStatus');
+      if (url.searchParams.has('active')) filters.active = url.searchParams.get('active') === 'true';
+
+      const questions = defaultReviewService.listQuestions(filters, role);
+      return json({ count: questions.length, questions });
+    }
+
+    // Admin Content Review: Single Question Inspection, Actions & Audit History
+    if (url.pathname.startsWith('/api/admin/questions/')) {
+      const role = request.headers.get('x-reviewer-role');
+      if (!isAuthorizedReviewer(role)) {
+        return json({ error: 'Forbidden: Requires authorized reviewer role' }, 403);
+      }
+
+      const reviewerId = request.headers.get('x-reviewer-id') || 'reviewer_admin';
+      const pathSuffix = url.pathname.slice('/api/admin/questions/'.length);
+      const segments = pathSuffix.split('/');
+      const questionId = decodeURIComponent(segments[0]);
+      const action = segments[1] || '';
+
+      try {
+        if (request.method === 'GET' && action === 'history') {
+          const history = defaultReviewService.getAuditHistory(questionId, role);
+          return json({ questionId, history });
+        }
+
+        if (request.method === 'GET' && !action) {
+          const details = defaultReviewService.getQuestionDetails(questionId, role);
+          return json(details);
+        }
+
+        if (request.method === 'POST') {
+          let body = {};
+          try { body = await request.json(); } catch {}
+
+          if (action === 'approve') {
+            const res = defaultReviewService.approveQuestion(questionId, { reviewerId, note: body?.note }, role);
+            return json(res);
+          }
+
+          if (action === 'reject') {
+            const res = defaultReviewService.rejectQuestion(questionId, { reviewerId, reason: body?.reason }, role);
+            return json(res);
+          }
+
+          if (action === 'correct') {
+            const res = defaultReviewService.correctQuestion(questionId, body?.updates || body, { reviewerId, note: body?.note }, role);
+            return json(res);
+          }
+
+          if (action === 'retire') {
+            const res = defaultReviewService.retireQuestion(questionId, { reviewerId, reason: body?.reason }, role);
+            return json(res);
+          }
+        }
+
+        return json({ error: 'Endpoint not found or method not allowed' }, 404);
+      } catch (err) {
+        return json({ error: err.message }, err.status || 500);
       }
     }
 

@@ -73,6 +73,7 @@ function build() {
   const dbCode = fs.readFileSync(path.join(srcDir, 'server', 'db.js'), 'utf8');
   const roomsCode = fs.readFileSync(path.join(srcDir, 'server', 'rooms.js'), 'utf8');
   const duelsCode = fs.readFileSync(path.join(srcDir, 'server', 'duels.js'), 'utf8');
+  const contentReviewCode = fs.readFileSync(path.join(srcDir, 'server', 'content-review.js'), 'utf8');
   const workerCode = fs.readFileSync(path.join(srcDir, 'server', 'worker.js'), 'utf8');
   const spritesCode = fs.readFileSync(path.join(srcDir, 'client', 'sprites.js'), 'utf8');
   const audioCode = fs.readFileSync(path.join(srcDir, 'client', 'audio.js'), 'utf8');
@@ -94,6 +95,7 @@ function build() {
     { name: 'db.js', code: dbCode },
     { name: 'rooms.js', code: roomsCode },
     { name: 'duels.js', code: duelsCode },
+    { name: 'content-review.js', code: contentReviewCode },
     { name: 'worker.js', code: workerCode },
     { name: 'sprites.js', code: spritesCode },
     { name: 'audio.js', code: audioCode },
@@ -170,6 +172,8 @@ ${condenseObjects(dbCode)}
 ${condenseObjects(roomsCode)}
 
 ${condenseObjects(duelsCode)}
+
+${condenseObjects(contentReviewCode)}
 
 const GAME_CSS = ${JSON.stringify(minifiedCss)};
 
