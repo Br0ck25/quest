@@ -64,7 +64,7 @@ Quest types:
 - Rescue/repair: restore an object or help an NPC by completing a challenge.
 - Review quest: revisit concepts due for spaced practice.
 
-Art direction: original 2D pixel-art or clean illustrated fantasy, consistent silhouettes, readable effects, responsive scaling. Use licensed or original assets only; do not imitate protected characters or distinctive commercial-game assets. Use placeholders during mechanics development.
+Art direction: All-code procedural 2D pixel-art and vector graphics (zero external raster image files). Visuals, tiles, entities, and UI icons are generated programmatically via Canvas 2D matrices, inline SVG, and CSS styling for zero asset latency, complete offline reliability, and seamless single-worker bundling. Responsive scaling adapts from small mobile screens to Chromebooks.
 
 ## 4. Core gameplay and combat rules
 
@@ -163,13 +163,14 @@ Child safety/privacy:
 ## 9. Technical architecture
 
 Recommended starting architecture, subject to repository and current Cloudflare compatibility checks:
-- Client: HTML/CSS plus JavaScript or TypeScript modules; Canvas 2D for world rendering and semantic DOM for UI.
-- API: Cloudflare Worker for auth, content delivery, answer validation, progress, inventory, and room setup.
+- Target Output: Self-contained `worker.js` script ready for copy-pasting directly into Cloudflare Workers Quick Edit or deploying via Wrangler.
+- File Budget: Strict limit of ≤ 2,000 lines of code per individual file across the entire project.
+- Client: HTML/CSS plus JavaScript/TypeScript modules; Canvas 2D for procedural world/entity rendering and semantic accessible DOM for UI/questions. Mobile-first design with virtual D-Pad.
+- API: Cloudflare Worker routes for auth, question delivery, answer validation, progress, inventory, and room setup.
 - Persistent relational data: Cloudflare D1.
 - Real-time sessions: Durable Objects plus WebSockets for authoritative room state.
-- Assets: R2 for versioned game art/audio and approved content imports.
-- KV only for suitable cache/configuration; not authoritative player progress.
-- Build/deploy: repository CI and current Wrangler tooling, verified from the actual project.
+- Assets: 100% procedural code (0 external images). No external asset buckets required for base gameplay.
+- Build/deploy: Modular local source compiling to the unified standalone `worker.js`.
 
 Architecture boundaries:
 - Shared schemas/types define API and WebSocket contracts.

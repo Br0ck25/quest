@@ -1,0 +1,21 @@
+{
+  "name": "quest-kentucky",
+  "version": "0.1.0",
+  "description": "Browser RPG for grades 6-8 preparing for Kentucky Governor's Cup competition",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "test": "node --test tests/**/*.test.js",
+    "dev": "node scripts/dev-server.js"
+  },
+  "keywords": [
+    "education",
+    "rpg",
+    "governors-cup",
+    "kaac",
+    "cloudflare-workers",
+    "pwa"
+  ],
+  "author": "QUEST Kentucky Team",
+  "license": "MIT"
+}

@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# Cloudflare Wrangler & local storage
+.wrangler/
+.mf/
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Test coverage & logs
+coverage/
+*.log
+
+# Temp files
+*.tmp
+.scratch/
