@@ -58,6 +58,7 @@
 | [`tests/unit/renderer.test.js`](file:///c:/Users/James/Downloads/Quest/tests/unit/renderer.test.js) | Unit test validating multi-zone generation, collision bounds, NPC/encounter proximity. |
 | [`tests/unit/rooms.test.js`](file:///c:/Users/James/Downloads/Quest/tests/unit/rooms.test.js) | Unit test validating multiplayer co-op room engine, boss combat, preset emotes, and rate limiting. |
 | [`tests/unit/duels.test.js`](file:///c:/Users/James/Downloads/Quest/tests/unit/duels.test.js) | Unit test validating 1v1 duels, choice order shuffling, delayed reveals, and recap scoring. |
+| [`tests/unit/accessibility.test.js`](file:///c:/Users/James/Downloads/Quest/tests/unit/accessibility.test.js) | Unit test validating WCAG AA contrast, touch targets, non-color cues, text scale, reduced motion, and focus trapping. |
 | [`tests/contract/worker.test.js`](file:///c:/Users/James/Downloads/Quest/tests/contract/worker.test.js) | Contract test validating Worker edge routes (health, root HTML, manifest, sw.js, questions, answers, progress, review/due, rooms, duels). |
 | [`worker.js`](file:///c:/Users/James/Downloads/Quest/worker.js) | **GENERATED BUILD ARTIFACT** (Do not edit directly; copy-paste target for Cloudflare). |
 | [`QUEST_Kentucky_Complete_Game_Plan_and_AI_Prompts.md`](file:///c:/Users/James/Downloads/Quest/QUEST_Kentucky_Complete_Game_Plan_and_AI_Prompts.md) | Master game design specification, 16 vertical slice implementation prompts, and roadmap. |

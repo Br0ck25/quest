@@ -1,7 +1,7 @@
 // src/client/ui.js — Semantic Accessible UI Overlay
 // Follows WHATWG HTML Living Standard: explicit closing tags, type="button", WCAG AA contrast.
 
-import { PALETTE, SUBJECTS } from '../data/constants.js';
+import { PALETTE, SUBJECTS, ACCESSIBILITY } from '../data/constants.js';
 import { getSvgIcon } from './sprites.js';
 import { soundEngine } from './audio.js';
 
@@ -11,15 +11,60 @@ export class UIManager {
     this.player = playerProfile;
     this.callbacks = callbacks;
     this.activeTab = null;
+    this.lastFocusedElement = null;
+    this._encounterKeyHandler = null;
 
     this.render();
     this.bindEvents();
+    this.applySettings();
+  }
+
+  applySettings() {
+    if (!this.root) return;
+    const s = this.player.settings || {};
+
+    // Text scale: 'normal' | 'large' | 'xlarge'
+    this.root.classList.remove('text-scale-normal', 'text-scale-large', 'text-scale-xlarge');
+    this.root.classList.add(`text-scale-${s.textScale || 'normal'}`);
+
+    // Reduced motion
+    if (s.reducedMotion) {
+      this.root.classList.add('reduced-motion');
+    } else {
+      this.root.classList.remove('reduced-motion');
+    }
+
+    // High contrast
+    if (s.highContrast) {
+      this.root.classList.add('high-contrast');
+    } else {
+      this.root.classList.remove('high-contrast');
+    }
+
+    // Untimed practice mode
+    if (s.untimedPractice) {
+      this.root.classList.add('untimed-mode');
+    } else {
+      this.root.classList.remove('untimed-mode');
+    }
+  }
+
+  announce(message) {
+    const sr = this.root.querySelector('#sr-announcements');
+    if (sr) {
+      sr.textContent = '';
+      setTimeout(() => {
+        sr.textContent = message;
+      }, 50);
+    }
   }
 
   render() {
     if (!this.root) return;
 
     this.root.innerHTML = `
+      <div id="sr-announcements" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
       <header class="game-hud" role="banner">
         <div class="hud-player">
           <div class="avatar-badge" aria-hidden="true">
@@ -30,8 +75,9 @@ export class UIManager {
             <div class="player-stats">
               <span class="level-badge" id="hud-level">LV ${this.player.level}</span>
               <div class="hp-bar-container" title="Health: ${this.player.hp}/${this.player.maxHp}">
-                <div class="hp-bar-fill" id="hud-hp-bar" style="width: ${(this.player.hp / this.player.maxHp) * 100}%"></div>
+                <div class="hp-bar-fill" id="hud-hp-bar" role="progressbar" aria-valuenow="${this.player.hp}" aria-valuemin="0" aria-valuemax="${this.player.maxHp}" style="width: ${(this.player.hp / this.player.maxHp) * 100}%"></div>
               </div>
+              <span class="hp-text" id="hud-hp-text">HP ${this.player.hp}/${this.player.maxHp}</span>
               <span class="gold-counter">
                 <span class="gold-icon" aria-hidden="true">${getSvgIcon('scroll', PALETTE.GOLD, 14)}</span>
                 <span id="hud-gold">${this.player.gold} G</span>
@@ -41,19 +87,19 @@ export class UIManager {
         </div>
 
         <nav class="hud-nav" aria-label="Game Navigation">
-          <button type="button" class="hud-btn" data-tab="map" title="Regional Map">
+          <button type="button" class="hud-btn" data-tab="map" title="Regional Map" aria-expanded="false" aria-controls="panel-container">
             ${getSvgIcon('map', PALETTE.TEXT_PRIMARY, 18)}
             <span class="btn-label">Map</span>
           </button>
-          <button type="button" class="hud-btn" data-tab="quests" title="Quest Log">
+          <button type="button" class="hud-btn" data-tab="quests" title="Quest Log" aria-expanded="false" aria-controls="panel-container">
             ${getSvgIcon('quests', PALETTE.TEXT_PRIMARY, 18)}
             <span class="btn-label">Quests</span>
           </button>
-          <button type="button" class="hud-btn" data-tab="inventory" title="Inventory">
+          <button type="button" class="hud-btn" data-tab="inventory" title="Inventory" aria-expanded="false" aria-controls="panel-container">
             ${getSvgIcon('inventory', PALETTE.TEXT_PRIMARY, 18)}
             <span class="btn-label">Items</span>
           </button>
-          <button type="button" class="hud-btn" data-tab="settings" title="Game Settings">
+          <button type="button" class="hud-btn" data-tab="settings" title="Game Settings" aria-expanded="false" aria-controls="panel-container">
             ${getSvgIcon('settings', PALETTE.TEXT_PRIMARY, 18)}
             <span class="btn-label">Settings</span>
           </button>
@@ -96,7 +142,29 @@ export class UIManager {
     `;
   }
 
+  trapFocus(event, container) {
+    if (event.key !== 'Tab') return;
+    const focusables = Array.from(
+      container.querySelectorAll('button:not([disabled]), [tabindex]:not([tabindex="-1"]), input:not([disabled]), select:not([disabled])')
+    );
+    if (focusables.length === 0) return;
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    if (event.shiftKey) {
+      if (document.activeElement === first || !container.contains(document.activeElement)) {
+        event.preventDefault();
+        last.focus();
+      }
+    } else {
+      if (document.activeElement === last || !container.contains(document.activeElement)) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+  }
+
   bindEvents() {
+    if (!this.root) return;
     // HUD tab buttons
     const navButtons = this.root.querySelectorAll('.hud-btn[data-tab]');
     navButtons.forEach(btn => {
@@ -116,7 +184,14 @@ export class UIManager {
       });
     }
 
-    // Close on escape key
+    // Modal focus trap & Escape key handler
+    const panelContainer = this.root.querySelector('#panel-container');
+    if (panelContainer) {
+      panelContainer.addEventListener('keydown', (e) => {
+        this.trapFocus(e, panelContainer);
+      });
+    }
+
     this.root.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && this.activeTab && this.activeTab !== 'encounter') {
         this.closePanel();
@@ -153,6 +228,7 @@ export class UIManager {
       return;
     }
 
+    this.lastFocusedElement = document.activeElement;
     this.activeTab = tab;
     const container = this.root.querySelector('#panel-container');
     const title = this.root.querySelector('#panel-title');
@@ -162,6 +238,12 @@ export class UIManager {
 
     soundEngine.playAlert();
     container.removeAttribute('hidden');
+
+    // Update aria-expanded on navigation buttons
+    this.root.querySelectorAll('.hud-btn[data-tab]').forEach(btn => {
+      const isTarget = btn.getAttribute('data-tab') === tab;
+      btn.setAttribute('aria-expanded', isTarget ? 'true' : 'false');
+    });
 
     switch (tab) {
       case 'map':
@@ -185,13 +267,37 @@ export class UIManager {
         this.closePanel();
         return;
     }
+
+    this.announce(`Opened ${title.textContent}`);
+
+    // Set initial focus to close button or first action
+    const closeBtn = this.root.querySelector('#panel-close');
+    if (closeBtn) {
+      closeBtn.focus();
+    }
   }
 
   closePanel() {
+    if (this._encounterKeyHandler) {
+      this.root.removeEventListener('keydown', this._encounterKeyHandler);
+      this._encounterKeyHandler = null;
+    }
     this.activeTab = null;
     const container = this.root.querySelector('#panel-container');
     if (container) {
       container.setAttribute('hidden', '');
+    }
+
+    // Reset aria-expanded states
+    this.root.querySelectorAll('.hud-btn[data-tab]').forEach(btn => {
+      btn.setAttribute('aria-expanded', 'false');
+    });
+
+    // Restore focus to triggering element
+    if (this.lastFocusedElement && typeof this.lastFocusedElement.focus === 'function') {
+      try {
+        this.lastFocusedElement.focus();
+      } catch {}
     }
   }
 
@@ -199,10 +305,17 @@ export class UIManager {
     this.player = player;
     const levelEl = this.root.querySelector('#hud-level');
     const hpBar = this.root.querySelector('#hud-hp-bar');
+    const hpText = this.root.querySelector('#hud-hp-text');
     const goldEl = this.root.querySelector('#hud-gold');
 
     if (levelEl) levelEl.textContent = `LV ${player.level}`;
-    if (hpBar) hpBar.style.width = `${Math.max(0, (player.hp / player.maxHp) * 100)}%`;
+    if (hpBar) {
+      const pct = Math.max(0, (player.hp / player.maxHp) * 100);
+      hpBar.style.width = `${pct}%`;
+      hpBar.setAttribute('aria-valuenow', String(player.hp));
+      hpBar.parentElement?.setAttribute('title', `Health: ${player.hp}/${player.maxHp}`);
+    }
+    if (hpText) hpText.textContent = `HP ${player.hp}/${player.maxHp}`;
     if (goldEl) goldEl.textContent = `${player.gold} G`;
   }
 
@@ -224,19 +337,26 @@ export class UIManager {
   renderQuestsPanel() {
     return `
       <div class="quests-list">
-        ${this.player.quests.map(q => `
+        ${this.player.quests.map(q => {
+          const isDone = q.status === 'completed';
+          const isActive = q.status === 'active' || q.status === 'in_progress';
+          const statusBadge = isDone
+            ? '✔ [COMPLETED]'
+            : (isActive ? '▶ [IN PROGRESS]' : '○ [AVAILABLE]');
+          return `
           <article class="quest-card" style="border-left: 4px solid ${q.color}">
             <header class="quest-card-header">
               <h3 class="quest-title">${this.escapeHtml(q.title)}</h3>
-              <span class="quest-badge status-${q.status}">${this.escapeHtml(q.status.toUpperCase())}</span>
+              <span class="quest-badge status-${q.status}">${statusBadge}</span>
             </header>
             <p class="quest-desc">${this.escapeHtml(q.description)}</p>
             <footer class="quest-footer">
-              <span class="quest-progress">${this.escapeHtml(q.progress)}</span>
+              <span class="quest-progress">Progress: <strong>${this.escapeHtml(q.progress)}</strong></span>
               <span class="quest-rewards">+${q.rewardXp} XP · +${q.rewardGold} Gold</span>
             </footer>
           </article>
-        `).join('')}
+        `;
+        }).join('')}
       </div>
     `;
   }
@@ -250,7 +370,12 @@ export class UIManager {
               ${getSvgIcon(item.icon, item.color, 24)}
             </div>
             <div class="item-details">
-              <h3 class="item-name">${this.escapeHtml(item.name)}</h3>
+              <div class="item-header-row">
+                <h3 class="item-name">${this.escapeHtml(item.name)}</h3>
+                <span class="item-equipped-badge ${item.equipped ? 'is-equipped' : ''}">
+                  ${item.equipped ? '✔ [EQUIPPED]' : '○ [IN PACK]'}
+                </span>
+              </div>
               <span class="item-type">${this.escapeHtml(item.subject)} · ${this.escapeHtml(item.type)}</span>
               <p class="item-desc">${this.escapeHtml(item.description)}</p>
             </div>
@@ -263,26 +388,66 @@ export class UIManager {
   renderSettingsPanel() {
     const isMuted = soundEngine.isMuted();
     const reducedMotion = Boolean(this.player.settings.reducedMotion);
+    const highContrast = Boolean(this.player.settings.highContrast);
+    const untimedPractice = Boolean(this.player.settings.untimedPractice);
+    const textScale = this.player.settings.textScale || 'normal';
 
     return `
       <div class="settings-form">
         <fieldset class="settings-group">
-          <legend class="settings-legend">Audio & Senses</legend>
+          <legend class="settings-legend">Text Size & Visual Scale</legend>
           <div class="setting-row">
-            <label for="toggle-audio" class="setting-label">Sound Effects (Procedural FX)</label>
-            <button type="button" id="toggle-audio" class="btn-toggle ${isMuted ? 'muted' : 'active'}">
-              ${isMuted ? getSvgIcon('audio-off', PALETTE.ERROR, 16) : getSvgIcon('audio-on', PALETTE.SUCCESS, 16)}
-              <span>${isMuted ? 'Muted' : 'Enabled'}</span>
+            <label class="setting-label" id="label-text-scale">Display Text Size</label>
+            <div class="scale-buttons" role="radiogroup" aria-labelledby="label-text-scale">
+              <button type="button" class="btn-scale ${textScale === 'normal' ? 'active' : ''}" data-scale="normal" role="radio" aria-checked="${textScale === 'normal'}">
+                Normal (100%)
+              </button>
+              <button type="button" class="btn-scale ${textScale === 'large' ? 'active' : ''}" data-scale="large" role="radio" aria-checked="${textScale === 'large'}">
+                Large (125%)
+              </button>
+              <button type="button" class="btn-scale ${textScale === 'xlarge' ? 'active' : ''}" data-scale="xlarge" role="radio" aria-checked="${textScale === 'xlarge'}">
+                Extra Large (150%)
+              </button>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="settings-group">
+          <legend class="settings-legend">Pacing & Accommodations (IEP / 504)</legend>
+          <div class="setting-row">
+            <div class="setting-label">
+              <span>Untimed Practice Mode</span>
+              <small class="setting-subtext">Disables time pressure and timers for relaxed academic practice.</small>
+            </div>
+            <button type="button" id="toggle-untimed" class="btn-toggle ${untimedPractice ? 'active' : ''}">
+              <span>${untimedPractice ? '✔ Enabled (Untimed Mode)' : 'Standard (Timed Practice)'}</span>
             </button>
           </div>
         </fieldset>
 
         <fieldset class="settings-group">
-          <legend class="settings-legend">Motion & Accessibility</legend>
+          <legend class="settings-legend">Motion & Contrast Accessibility</legend>
           <div class="setting-row">
             <label for="toggle-motion" class="setting-label">Reduced Motion (No Screen Shake)</label>
             <button type="button" id="toggle-motion" class="btn-toggle ${reducedMotion ? 'active' : ''}">
-              <span>${reducedMotion ? 'Enabled (Calm)' : 'Standard'}</span>
+              <span>${reducedMotion ? '✔ Enabled (Calm Mode)' : 'Standard Motion'}</span>
+            </button>
+          </div>
+          <div class="setting-row" style="margin-top: 10px;">
+            <label for="toggle-contrast" class="setting-label">High Contrast Borders</label>
+            <button type="button" id="toggle-contrast" class="btn-toggle ${highContrast ? 'active' : ''}">
+              <span>${highContrast ? '✔ High Contrast On' : 'Standard Contrast'}</span>
+            </button>
+          </div>
+        </fieldset>
+
+        <fieldset class="settings-group">
+          <legend class="settings-legend">Audio & Senses</legend>
+          <div class="setting-row">
+            <label for="toggle-audio" class="setting-label">Sound Effects (Procedural Audio)</label>
+            <button type="button" id="toggle-audio" class="btn-toggle ${isMuted ? 'muted' : 'active'}">
+              ${isMuted ? getSvgIcon('audio-off', PALETTE.ERROR, 16) : getSvgIcon('audio-on', PALETTE.SUCCESS, 16)}
+              <span>${isMuted ? 'Muted (Visual Cues Active)' : 'Enabled (Sound Active)'}</span>
             </button>
           </div>
         </fieldset>
@@ -304,6 +469,48 @@ export class UIManager {
   }
 
   bindSettingsEvents(container) {
+    // Text scale selection
+    container.querySelectorAll('.btn-scale').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const scale = btn.getAttribute('data-scale');
+        this.player.settings.textScale = scale;
+        this.applySettings();
+        soundEngine.playClick();
+        this.openTab('settings');
+        if (this.callbacks.onSettingsChange) {
+          this.callbacks.onSettingsChange(this.player.settings);
+        }
+      });
+    });
+
+    // Untimed practice mode
+    const untimedBtn = container.querySelector('#toggle-untimed');
+    if (untimedBtn) {
+      untimedBtn.addEventListener('click', () => {
+        this.player.settings.untimedPractice = !this.player.settings.untimedPractice;
+        this.applySettings();
+        soundEngine.playClick();
+        this.openTab('settings');
+        if (this.callbacks.onSettingsChange) {
+          this.callbacks.onSettingsChange(this.player.settings);
+        }
+      });
+    }
+
+    // High contrast mode
+    const contrastBtn = container.querySelector('#toggle-contrast');
+    if (contrastBtn) {
+      contrastBtn.addEventListener('click', () => {
+        this.player.settings.highContrast = !this.player.settings.highContrast;
+        this.applySettings();
+        soundEngine.playClick();
+        this.openTab('settings');
+        if (this.callbacks.onSettingsChange) {
+          this.callbacks.onSettingsChange(this.player.settings);
+        }
+      });
+    }
+
     const audioBtn = container.querySelector('#toggle-audio');
     if (audioBtn) {
       audioBtn.addEventListener('click', () => {
@@ -321,6 +528,7 @@ export class UIManager {
     if (motionBtn) {
       motionBtn.addEventListener('click', () => {
         this.player.settings.reducedMotion = !this.player.settings.reducedMotion;
+        this.applySettings();
         soundEngine.playClick();
         this.openTab('settings');
         if (this.callbacks.onSettingsChange) {
@@ -351,6 +559,7 @@ export class UIManager {
    * @param {(choiceId: string) => void} onSelectChoice
    */
   openEncounterModal(encounter, question, onSelectChoice) {
+    this.lastFocusedElement = document.activeElement;
     this.activeTab = 'encounter';
     const container = this.root.querySelector('#panel-container');
     const title = this.root.querySelector('#panel-title');
@@ -362,6 +571,13 @@ export class UIManager {
     container.removeAttribute('hidden');
 
     title.textContent = `Combat Encounter: ${encounter.name}`;
+
+    const untimedNotice = this.player.settings.untimedPractice
+      ? `<div class="untimed-notice" role="note" aria-label="Untimed practice accommodation">
+           <span class="badge-icon" aria-hidden="true">⏳</span>
+           <span><strong>Untimed Practice Mode</strong> — Take as much time as you need.</span>
+         </div>`
+      : '';
 
     body.innerHTML = `
       <div class="encounter-modal">
@@ -378,11 +594,13 @@ export class UIManager {
           </div>
         </header>
 
+        ${untimedNotice}
+
         <section class="question-card-prompt" id="question-prompt">
           ${this.escapeHtml(question.prompt)}
         </section>
 
-        <div class="choices-list" id="choices-container" role="radiogroup" aria-label="Question Choices">
+        <div class="choices-list" id="choices-container" role="radiogroup" aria-label="Question Choices (Press 1-4 or A-D to answer)">
           ${question.choices.map(c => `
             <button type="button" class="choice-btn" data-choice="${c.id}" role="radio" aria-checked="false">
               <span class="choice-key">${c.id.toUpperCase()}</span>
@@ -395,22 +613,63 @@ export class UIManager {
       </div>
     `;
 
+    this.announce(`Question encounter: ${question.prompt}`);
+
     const choiceButtons = body.querySelectorAll('.choice-btn');
     choiceButtons.forEach(btn => {
       btn.addEventListener('click', () => {
         const choiceId = btn.getAttribute('data-choice');
         choiceButtons.forEach(b => (b.disabled = true));
+        if (this._encounterKeyHandler) {
+          this.root.removeEventListener('keydown', this._encounterKeyHandler);
+          this._encounterKeyHandler = null;
+        }
         if (onSelectChoice) {
           onSelectChoice(choiceId);
         }
       });
     });
+
+    // Keyboard choice selection handler: 1-4 or A-D
+    const onEncounterKey = (e) => {
+      if (this.activeTab !== 'encounter') return;
+      const key = e.key.toLowerCase();
+      let targetChoice = null;
+      if (key === '1' || key === 'a') targetChoice = 'a';
+      else if (key === '2' || key === 'b') targetChoice = 'b';
+      else if (key === '3' || key === 'c') targetChoice = 'c';
+      else if (key === '4' || key === 'd') targetChoice = 'd';
+
+      if (targetChoice) {
+        const btn = body.querySelector(`.choice-btn[data-choice="${targetChoice}"]`);
+        if (btn && !btn.disabled) {
+          e.preventDefault();
+          btn.click();
+        }
+      }
+    };
+
+    if (this._encounterKeyHandler) {
+      this.root.removeEventListener('keydown', this._encounterKeyHandler);
+    }
+    this._encounterKeyHandler = onEncounterKey;
+    this.root.addEventListener('keydown', onEncounterKey);
+
+    // Initial focus on first choice
+    if (choiceButtons.length > 0) {
+      choiceButtons[0].focus();
+    }
   }
 
   /**
    * Displays answer feedback and explanation card in the encounter modal.
    */
   showAnswerFeedback(result, onNext) {
+    if (this._encounterKeyHandler) {
+      this.root.removeEventListener('keydown', this._encounterKeyHandler);
+      this._encounterKeyHandler = null;
+    }
+
     const body = this.root.querySelector('#panel-body');
     const feedbackSlot = this.root.querySelector('#encounter-feedback-slot');
     if (!feedbackSlot) return;
@@ -426,15 +685,24 @@ export class UIManager {
       enemyHpFill.style.width = `${Math.max(0, result.enemyHp * 50)}%`;
     }
 
+    const statusBadge = result.correct
+      ? '<span class="feedback-badge badge-correct">✔ [CORRECT]</span>'
+      : '<span class="feedback-badge badge-incorrect">✖ [INCORRECT — REVIEW SCHEDULED]</span>';
+
     feedbackSlot.innerHTML = `
-      <aside class="feedback-card ${result.correct ? 'feedback-correct' : 'feedback-incorrect'}">
-        <h4 class="feedback-title">${result.correct ? '✔ Correct Answer!' : '✖ Academic Review Feedback'}</h4>
+      <aside class="feedback-card ${result.correct ? 'feedback-correct' : 'feedback-incorrect'}" role="alert">
+        <div class="feedback-status-row">
+          ${statusBadge}
+          <h4 class="feedback-title">${result.correct ? 'Mastery Verified!' : 'Academic Review Feedback'}</h4>
+        </div>
         <p class="feedback-text">${this.escapeHtml(result.explanation)}</p>
         <button type="button" class="feedback-action-btn" id="feedback-next-btn">
           ${result.enemyDefeated ? 'Claim Victory' : (result.playerDefeated ? 'Recover at Sanctuary' : 'Next Question')}
         </button>
       </aside>
     `;
+
+    this.announce(result.correct ? `Correct! ${result.explanation}` : `Incorrect. ${result.explanation}`);
 
     const nextBtn = feedbackSlot.querySelector('#feedback-next-btn');
     if (nextBtn) {

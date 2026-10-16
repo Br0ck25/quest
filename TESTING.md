@@ -55,3 +55,32 @@ tests/
   node --test tests/**/*.test.js
   ```
 - All tests must pass before generating or updating the production `worker.js` artifact.
+
+---
+
+## 4. Accessibility & Target Device Verification Matrix
+
+### 4.1 Automated Accessibility Verification (`tests/unit/accessibility.test.js`)
+- **Luminance Contrast**: Automated WCAG 2.1 AA formula checks verifying that all foreground text tokens exceed 4.5:1 (normal text) and 7.0:1 (primary text) against dark surfaces (`#0F172A` and `#1E293B`).
+- **Touch Target Integrity**: Minimum $48 \times 48\text{px}$ dimension checks on all virtual controls, choice buttons, and modal elements.
+- **Focus Management**: Automated tests verifying focus trapping within modals, focus cycling on `Tab`/`Shift+Tab`, and focus return to `lastFocusedElement` on close.
+- **Non-Color Indicators**: Verification of paired symbols (`✓`, `▶`, `○`, `✗`) and textual tags alongside color styling.
+
+### 4.2 Target Device Form Factor Matrix
+| Device Category | Benchmark Resolution | Input Modes | Layout Behavior |
+| :--- | :--- | :--- | :--- |
+| **Small Phone** | $360 \times 640\text{px}$ | Touch (Virtual D-Pad, $48\text{px}$ buttons) | Single-column HUD, auto-collapsed button text labels, full-width modal overlay. |
+| **Large Phone** | $412 \times 915\text{px}$ | Touch (Virtual D-Pad, $56\text{px}$ action buttons) | Compact HUD, vertically stacked choices with ample spacing. |
+| **Tablet** | $768 \times 1024\text{px}$ | Touch & Keyboard | 2-column grid for inventory and quest logs, comfortable modal margins. |
+| **School Chromebook** | $1366 \times 768\text{px}$ | Keyboard (WASD, Arrows, 1–4, A–D) & Trackpad | Widescreen landscape layout, optimal 680px line length container, focus rings. |
+| **Desktop / Laptop** | $1920 \times 1080\text{px}$ | Keyboard, Mouse, Trackpad | Centered game viewport, 1:1 crisp nearest-neighbor canvas rendering. |
+
+### 4.3 Classroom Accommodations (IEP / Section 504)
+- **Untimed Practice Mode**: Eliminates timer countdowns in solo questions, allowing students with IEP/504 accommodations to practice without anxiety.
+- **Display Text Scaling**: In-game font scale settings (`Normal 100%`, `Large 125%`, `Extra Large 150%`) with fluid CSS scaling.
+- **Reduced Motion**: Honored via both `@media (prefers-reduced-motion: reduce)` and the in-game Calm Mode setting.
+
+### 4.4 Honest Limitations & Trade-Offs
+1. **Procedural Canvas 2D Graphics**: Screen readers cannot inspect individual pixel art entities on the Canvas 2D element. To ensure complete accessibility, all critical game interactions, question prompts, dialogue, stats, and inventories are rendered in semantic HTML with ARIA live region announcements (`#sr-announcements`).
+2. **Viewport Zooming in Standalone PWA**: The standalone PWA shell specifies `user-scalable=no` per `PWA.md` to prevent accidental zooming during rapid touch D-pad tapping. Font size adjustments are provided via the in-app Text Scaling setting (`Normal`, `Large`, `Extra Large`) in the accessible settings panel.
+

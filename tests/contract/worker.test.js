@@ -14,8 +14,25 @@ test('Worker health route returns ok and phase status', async () => {
   assert.equal(data.status, 'ok');
   assert.equal(data.game, 'QUEST: Kentucky');
   assert.equal(data.gradeBand, '6-8');
-  assert.equal(data.phase, 7);
-  assert.equal(data.mode, '1v1-duels');
+  assert.equal(data.phase, 8);
+  assert.equal(data.mode, 'accessibility-polish');
+  assert.equal(data.accessibility, true);
+});
+
+test('Worker accessibility route returns WCAG AA compliance metadata', async () => {
+  const req = new Request('http://localhost/api/accessibility');
+  const res = await worker.fetch(req, {}, {});
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get('content-type'), 'application/json');
+
+  const data = await res.json();
+  assert.equal(data.minTouchTargetPx, 48);
+  assert.equal(data.wcagStandard, 'WCAG 2.1 AA');
+  assert.deepEqual(data.textScales, ['normal', 'large', 'xlarge']);
+  assert.equal(data.untimedPractice, true);
+  assert.equal(data.reducedMotion, true);
+  assert.equal(data.highContrastMode, true);
+  assert.equal(data.targetViewports.length, 5);
 });
 
 test('Worker root returns semantic HTML with responsive canvas and UI root', async () => {

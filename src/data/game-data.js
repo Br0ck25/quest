@@ -178,6 +178,8 @@ export function createDefaultPlayerProfile() {
       audioMuted: false,
       reducedMotion: false,
       highContrast: false,
+      textScale: 'normal',
+      untimedPractice: false,
     },
   };
 }

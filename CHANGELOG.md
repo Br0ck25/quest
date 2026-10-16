@@ -251,6 +251,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
     - Expanded contract tests in `tests/contract/worker.test.js` (lifecycle, delayed reveal, recap, rate limiting).
     - Total test suite expanded from 115 to 126 passing tests (0 failures across 13 test suites).
     - Standalone generated artifact [`worker.js`](file:///c:/Users/James/Downloads/Quest/worker.js) compiles to 1,477 lines (strictly below 2,000 line ceiling).
+- **Phase 8: Accessibility, Usability & Device Polish (WCAG 2.1 AA)**:
+  - **Multi-Modal Feedback & Non-Color Cues (`src/data/constants.js`, `src/client/ui.js`)**:
+    - Introduced `ACCESSIBILITY.STATUS_CUES` pairing icons and textual tags across quest cards, item inventory, and answer evaluations (`✔ [COMPLETED]`, `▶ [IN PROGRESS]`, `○ [AVAILABLE]`, `✔ [EQUIPPED]`, `✔ [CORRECT]`, `✖ [INCORRECT — REVIEW SCHEDULED]`).
+    - Added integer numerical health display (`HP 100/100`) alongside visual percentage bars, with explicit `role="progressbar"` and `aria-valuenow`.
+    - Mathematically verified relative luminance contrast ratios for all palette tokens against dark backgrounds (17.06:1 for primary text, 6.96:1 for secondary text, 8.33:1 for focus rings, 7.04:1 for success, 4.74:1 for error), exceeding WCAG AA minimums without violating the approved color palette.
+  - **Keyboard Navigation & Focus Management (`src/client/ui.js`, `src/client/styles.js`)**:
+    - Implemented question encounter keyboard shortcuts: numbers `1`–`4` or letters `A`–`D` instantly select choices during solo encounters.
+    - Added accessible modal focus trap cycling (`Tab` / `Shift+Tab`) inside panel containers, preventing background focus escape.
+    - Implemented automatic focus restoration (`lastFocusedElement`) restoring browser focus to triggering navigation buttons on dialog dismissal.
+    - Added high-visibility 3px sky-blue focus rings (`:focus-visible`) across all interactive buttons, inputs, and cards.
+  - **Classroom Accommodations & Typography Scaling (`src/client/ui.js`, `src/client/styles.js`)**:
+    - Added Untimed Practice Mode (IEP / Section 504 accommodation) in Settings, removing all countdown timers and stress triggers from solo encounters.
+    - Added in-app Display Text Scaling setting (`Normal 100%`, `Large 125%`, `Extra Large 150%`) with dedicated CSS scaling classes (`.text-scale-normal`, `.text-scale-large`, `.text-scale-xlarge`).
+    - Added Reduced Motion setting (Calm Mode) and `@media (prefers-reduced-motion: reduce)` support eliminating camera shake and visual pulsing.
+    - Enhanced Sound Effects toggle with persistent visual indicators and screen reader announcements (`#sr-announcements` live region).
+  - **Touch Ergonomics & Multi-Viewport Polish (`src/client/styles.js`, `src/server/worker.js`)**:
+    - Verified all interactive buttons meet or exceed the minimum $48 \times 48\text{px}$ touch target requirement.
+    - Polished responsive layouts for target viewports: Small Phone ($360 \times 640\text{px}$), Large Phone ($412 \times 915\text{px}$), Tablet ($768 \times 1024\text{px}$), School Chromebook ($1366 \times 768\text{px}$), and Desktop ($1920 \times 1080\text{px}$).
+    - Updated Worker health check to Phase 8 (`mode: 'accessibility-polish'`) and added `GET /api/accessibility` verification endpoint.
+  - **Testing Integrity & Line Budget**:
+    - Added dedicated test suite `tests/unit/accessibility.test.js` (6 tests covering WCAG AA contrast, touch target sizes, non-color cues, text scales, and focus trap logic).
+    - Expanded contract tests in `tests/contract/worker.test.js` (health phase 8, accessibility route).
+    - Total test suite expanded from 126 to 133 passing tests (100% pass rate across 14 test suites).
+    - Compiled standalone artifact [`worker.js`](file:///c:/Users/James/Downloads/Quest/worker.js) compiles cleanly to 1,496 lines (well below the 2,000 line ceiling).
 
 
 

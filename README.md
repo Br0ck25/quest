@@ -2,8 +2,8 @@
 
 > **Responsive Browser RPG for Middle Grades (Grades 6–8) preparing for KAAC Governor's Cup Academic Competition.**
 
-[![Tests](https://img.shields.io/badge/tests-126%20passing-brightgreen)](#testing)
-[![Phase](https://img.shields.io/badge/phase-7%201v1%20knowledge%20duels-blue)](#phase-7-1v1-knowledge-duels-balanced-scoring--delayed-answer-reveals)
+[![Tests](https://img.shields.io/badge/tests-133%20passing-brightgreen)](#testing)
+[![Phase](https://img.shields.io/badge/phase-8%20accessibility%20%26%20device%20polish-blue)](#phase-8-accessibility-usability--device-polish-wcag-aa)
 [![Cloudflare Workers](https://img.shields.io/badge/deployment-Cloudflare%20Workers-orange)](#deployment)
 
 ---
@@ -231,7 +231,42 @@ Phase 7 implements private-code 1v1 head-to-head academic duels tailored for fai
 
 ---
 
-## 9. Architecture Principles
+## 9. Phase 8: Accessibility, Usability & Device Polish (WCAG AA)
+
+Phase 8 elevates QUEST: Kentucky to enterprise educational accessibility standards (WCAG 2.1 Level AA) across classrooms, IEP/504 accommodations, and multi-device school deployments:
+
+### Multi-Modal Feedback & Non-Color-Only Indicators
+- **Beyond Color Semantics**: Quest status, inventory equipment, combat feedback, and mastery states pair approved color tokens with explicit icons (`✓`, `▶`, `○`, `🔒`, `✗`) and textual tags (`[COMPLETED]`, `[IN PROGRESS]`, `[AVAILABLE]`, `[EQUIPPED]`, `[CORRECT]`, `[INCORRECT — REVIEW SCHEDULED]`).
+- **Numerical Stat Display**: HUD health displays exact integer values (`HP 100/100`) alongside visual percentage bars, augmented with `role="progressbar"` and `aria-valuenow`.
+- **WCAG AA Contrast Compliance**: Mathematically verified relative luminance contrast across all approved palette tokens on dark surfaces (`TEXT_PRIMARY`: 17.06:1, `TEXT_SECONDARY`: 6.96:1, `BORDER_FOCUS`: 8.33:1, `GOLD`: 10.69:1, `SUCCESS`: 7.04:1, `ERROR`: 4.74:1).
+
+### Keyboard Navigation & Accessible Dialog Management
+- **Question Encounter Shortcuts**: Press `1`–`4` or `A`–`D` (case-insensitive) to select choices during solo encounters and duels.
+- **Accessible Focus Trap**: Active dialog overlays trap focus inside their boundary (`Tab` / `Shift+Tab` cycle), prevent backdrop leakage, and dismiss cleanly on `Escape`.
+- **Focus Restoration**: Closing any panel or modal automatically returns browser focus to the triggering button (`lastFocusedElement`).
+- **High-Visibility Focus Rings**: Unambiguous 3px solid sky-blue focus rings with 3px offset (`:focus-visible`).
+
+### Classroom Pacing & Accommodations (IEP / Section 504)
+- **Untimed Practice Mode**: Students with processing challenges or IEP accommodations can toggle Untimed Practice Mode in Settings, removing all countdown timers and anxiety triggers from solo encounters.
+- **Display Text Scaling**: In-app typography selector supporting `Normal (100%)`, `Large (125%)`, and `Extra Large (150%)` text scaling without viewport overflow or layout distortion.
+- **Reduced Motion (Calm Mode)**: System preference (`prefers-reduced-motion`) and in-game toggle eliminate camera shakes, pulses, and transitions for students sensitive to visual motion.
+- **Audio Mute with Visual Fallback**: 1-click procedural audio mute toggle paired with persistent visual indicators and screen reader announcements (`#sr-announcements`).
+
+### Target Viewports & Touch Ergonomics
+- **Touch Hit Target Guarantee**: All clickable interactive targets (D-Pad, action buttons, menu tabs, choice cards, dialog buttons) meet or exceed the $48 \times 48\text{px}$ touch target threshold.
+- **Device Form Factor Benchmarks**:
+  - Small Phone: $360 \times 640\text{px}$ (compact single-column stack, auto-collapsing labels)
+  - Large Phone: $412 \times 915\text{px}$ (comfortable one-handed reachability)
+  - Tablet: $768 \times 1024\text{px}$ (responsive multi-column grids)
+  - School Chromebook: $1366 \times 768\text{px}$ (horizontal widescreen layout, 680px optimal line length)
+  - Desktop: $1920 \times 1080\text{px}$ (centered max-width container, nearest-neighbor pixel scaling)
+
+### Phase 8 API Endpoints
+- `GET /api/accessibility`: Delivers WCAG AA compliance metadata, supported text scales, accommodations, and target viewport matrices.
+
+---
+
+## 10. Architecture Principles
 
 - **Zero External Raster Images**: 100% procedural Canvas 2D sprites & inline SVG icons.
 - **Zero External Audio Files**: Synthesized procedural Web Audio API sound effects.

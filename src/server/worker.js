@@ -159,9 +159,30 @@ export default {
         headers: { 'Content-Type': 'application/json', ...securityHeaders },
       });
 
-    // Health check endpoint (Phase 7)
+    // Health check endpoint (Phase 8: Accessibility & Device Polish)
     if (url.pathname === '/api/health') {
-      return json({ status: 'ok', game: 'QUEST: Kentucky', gradeBand: '6-8', phase: 7, mode: '1v1-duels' });
+      return json({ status: 'ok', game: 'QUEST: Kentucky', gradeBand: '6-8', phase: 8, mode: 'accessibility-polish', accessibility: true });
+    }
+
+    // Accessibility metadata & verification endpoint
+    if (url.pathname === '/api/accessibility' && request.method === 'GET') {
+      return json({
+        minTouchTargetPx: 48,
+        wcagStandard: 'WCAG 2.1 AA',
+        textScales: ['normal', 'large', 'xlarge'],
+        untimedPractice: true,
+        nonColorCues: true,
+        reducedMotion: true,
+        highContrastMode: true,
+        audioMuteToggle: true,
+        targetViewports: [
+          { name: 'Small Phone', width: 360, height: 640 },
+          { name: 'Large Phone', width: 412, height: 915 },
+          { name: 'Tablet', width: 768, height: 1024 },
+          { name: 'Chromebook', width: 1366, height: 768 },
+          { name: 'Desktop', width: 1920, height: 1080 },
+        ],
+      });
     }
 
     // Public Question Delivery endpoint (Sanitized, Rights-Gated)

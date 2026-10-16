@@ -82,3 +82,27 @@ export const SPACED_REPETITION = {
 };
 
 export const TARGET_GRADE_BAND = '6-8'; // Middle Grades focus
+
+export const ACCESSIBILITY = {
+  MIN_TOUCH_TARGET_PX: 48,
+  TEXT_SCALES: {
+    NORMAL: 'normal',
+    LARGE: 'large',
+    XLARGE: 'xlarge',
+  },
+  STATUS_CUES: {
+    COMPLETED: { icon: '✓', label: 'COMPLETED' },
+    IN_PROGRESS: { icon: '▶', label: 'IN PROGRESS' },
+    AVAILABLE: { icon: '○', label: 'AVAILABLE' },
+    LOCKED: { icon: '🔒', label: 'LOCKED' },
+    CORRECT: { icon: '✓', label: 'CORRECT' },
+    INCORRECT: { icon: '✗', label: 'REVIEW NEEDED' },
+  },
+  TARGET_VIEWPORTS: [
+    { name: 'Small Phone', width: 360, height: 640 },
+    { name: 'Large Phone', width: 412, height: 915 },
+    { name: 'Tablet', width: 768, height: 1024 },
+    { name: 'Chromebook', width: 1366, height: 768 },
+    { name: 'Desktop', width: 1920, height: 1080 },
+  ],
+};
