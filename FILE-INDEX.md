@@ -26,6 +26,7 @@
 | [`migrations/0001_initial_schema.sql`](file:///c:/Users/James/Downloads/Quest/migrations/0001_initial_schema.sql) | D1 SQL migration: pseudonymous users, questions, attempts, mastery, ledger, and inventory. |
 | [`migrations/0002_progression_and_rewards.sql`](file:///c:/Users/James/Downloads/Quest/migrations/0002_progression_and_rewards.sql) | D1 SQL migration: user progression tracking and quest completion records. |
 | [`migrations/0003_multiplayer_rooms.sql`](file:///c:/Users/James/Downloads/Quest/migrations/0003_multiplayer_rooms.sql) | D1 SQL migration: co-op multiplayer room session and participant tables. |
+| [`migrations/0004_duels.sql`](file:///c:/Users/James/Downloads/Quest/migrations/0004_duels.sql) | D1 SQL migration: 1v1 knowledge duels matches and round responses. |
 | [`src/data/constants.js`](file:///c:/Users/James/Downloads/Quest/src/data/constants.js) | Centralized project constants (dimensions, palette tokens, subject mappings, intervals). |
 | [`src/data/game-data.js`](file:///c:/Users/James/Downloads/Quest/src/data/game-data.js) | Child-safe pseudonymous handle generator, starter quests, and starter inventory. |
 | [`src/data/progression.js`](file:///c:/Users/James/Downloads/Quest/src/data/progression.js) | Level curve, anti-farming question rewards, cosmetic catalog, and economic balance simulation. |
@@ -42,6 +43,7 @@
 | [`src/client/app.js`](file:///c:/Users/James/Downloads/Quest/src/client/app.js) | Application orchestrator connecting world zones, combat encounters, audio, and quest rewards. |
 | [`src/server/db.js`](file:///c:/Users/James/Downloads/Quest/src/server/db.js) | Cloudflare D1 database persistence adapter with in-memory fallback for attempts & mastery. |
 | [`src/server/rooms.js`](file:///c:/Users/James/Downloads/Quest/src/server/rooms.js) | Authoritative multiplayer co-op room engine, lobby sync, boss combat, and rate limiting. |
+| [`src/server/duels.js`](file:///c:/Users/James/Downloads/Quest/src/server/duels.js) | Authoritative 1v1 duel engine, choice shuffling, delayed reveals, and recap stats. |
 | [`src/server/worker.js`](file:///c:/Users/James/Downloads/Quest/src/server/worker.js) | Cloudflare Worker edge handler serving HTML shell, PWA manifest, service worker, and API. |
 | [`tests/unit/constants.test.js`](file:///c:/Users/James/Downloads/Quest/tests/unit/constants.test.js) | Unit test validating centralized constants against design system and curriculum specifications. |
 | [`tests/unit/game-data.test.js`](file:///c:/Users/James/Downloads/Quest/tests/unit/game-data.test.js) | Unit test validating pseudonymous handle generation, starter quests, and default profile. |
@@ -55,7 +57,8 @@
 | [`tests/unit/sprites.test.js`](file:///c:/Users/James/Downloads/Quest/tests/unit/sprites.test.js) | Unit test validating directional sprite matrices, NPC/enemy sprites, and SVG icons. |
 | [`tests/unit/renderer.test.js`](file:///c:/Users/James/Downloads/Quest/tests/unit/renderer.test.js) | Unit test validating multi-zone generation, collision bounds, NPC/encounter proximity. |
 | [`tests/unit/rooms.test.js`](file:///c:/Users/James/Downloads/Quest/tests/unit/rooms.test.js) | Unit test validating multiplayer co-op room engine, boss combat, preset emotes, and rate limiting. |
-| [`tests/contract/worker.test.js`](file:///c:/Users/James/Downloads/Quest/tests/contract/worker.test.js) | Contract test validating Worker edge routes (health, root HTML, manifest, sw.js, questions, answers, progress, review/due, rooms). |
+| [`tests/unit/duels.test.js`](file:///c:/Users/James/Downloads/Quest/tests/unit/duels.test.js) | Unit test validating 1v1 duels, choice order shuffling, delayed reveals, and recap scoring. |
+| [`tests/contract/worker.test.js`](file:///c:/Users/James/Downloads/Quest/tests/contract/worker.test.js) | Contract test validating Worker edge routes (health, root HTML, manifest, sw.js, questions, answers, progress, review/due, rooms, duels). |
 | [`worker.js`](file:///c:/Users/James/Downloads/Quest/worker.js) | **GENERATED BUILD ARTIFACT** (Do not edit directly; copy-paste target for Cloudflare). |
 | [`QUEST_Kentucky_Complete_Game_Plan_and_AI_Prompts.md`](file:///c:/Users/James/Downloads/Quest/QUEST_Kentucky_Complete_Game_Plan_and_AI_Prompts.md) | Master game design specification, 16 vertical slice implementation prompts, and roadmap. |
 | [`QUEST_Kentucky_Complete_Game_Plan_and_AI_Prompts.docx`](file:///c:/Users/James/Downloads/Quest/QUEST_Kentucky_Complete_Game_Plan_and_AI_Prompts.docx) | Word document version of the master game design specification. |

@@ -222,6 +222,36 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
     - Expanded contract tests in `tests/contract/worker.test.js` (room creation, joining, ready toggle, answer sync, emote broadcast, rate limit 429).
     - Total test suite expanded from 103 to 115 passing tests (0 failures across 13 test suites).
     - Standalone generated artifact [`worker.js`](file:///c:/Users/James/Downloads/Quest/worker.js) compiles to 1,832 lines (strictly within the 2,000 line ceiling).
+- **Phase 7: 1v1 Knowledge Duels, Balanced Scoring & Delayed Answer Reveals**:
+  - **D1 Duel Match Schema (`migrations/0004_duels.sql`, `migrations/0000_complete_schema.sql`)**:
+    - Created `duel_matches` table tracking private duel codes, player handles, status (`LOBBY`, `IN_PROGRESS`, `ROUND_REVEAL`, `FINISHED`), winner, and timestamps.
+    - Created `duel_rounds` table storing per-round responses, response times, scores, and answer reveal flags.
+  - **Authoritative 1v1 Duel Engine (`src/server/duels.js`)**:
+    - Built `DuelMatch` enforcing strict 2-player capacity, lobby readiness checks, and 5 rounds showcasing all KAAC academic subjects.
+    - Implemented deterministic choice order shuffling per player (`shuffleChoicesForPlayer`) to prevent shoulder surfing / screen peeking in classroom environments.
+    - Enforced Delayed Answer Reveal Policy: neither player sees the answer key or their opponent's choice while the round is active; reveals occur synchronously after both submit.
+    - Implemented Balanced Authoritative Scoring: Accuracy is primary (100 base points); speed bonus is capped (max 10 points) and awarded only on correct answers.
+    - Added respectful post-match recap (`getRecap`) with outcome title, winner, final scores, accuracy percentages, average response times, and round breakdowns.
+    - Built `DuelManager` handling private room code generation (`DUEL-XXXX`), lifecycle expiration, and anti-brute force rate limiting (max 5 failed attempts per 5 minutes per client).
+    - Supported 45-second disconnect grace period and child-safe preset emotes.
+  - **Edge Worker API Endpoints (`src/server/worker.js`, `scripts/build.js`)**:
+    - `/api/health` updated to Phase 7 with mode `1v1-duels`.
+    - `POST /api/duels/create`: creates private 1v1 duel lobby.
+    - `POST /api/duels/join`: joins duel match with rate limiting protection (HTTP 429).
+    - `POST /api/duels/ready`: toggles ready state.
+    - `POST /api/duels/start`: host starts match.
+    - `POST /api/duels/answer`: submits answer with delayed reveal check.
+    - `POST /api/duels/next-round`: advances round.
+    - `POST /api/duels/emote`: sends preset emote.
+    - `GET /api/duels/status`: fetches player-specific sanitized match snapshot.
+    - `GET /api/duels/recap`: retrieves post-match stats.
+    - `GET /api/duels/ws`: WebSocket connection for edge duel sync.
+  - **Testing Integrity & Line Budget**:
+    - Added unit test suite `tests/unit/duels.test.js` (9 comprehensive tests).
+    - Expanded contract tests in `tests/contract/worker.test.js` (lifecycle, delayed reveal, recap, rate limiting).
+    - Total test suite expanded from 115 to 126 passing tests (0 failures across 13 test suites).
+    - Standalone generated artifact [`worker.js`](file:///c:/Users/James/Downloads/Quest/worker.js) compiles to 1,477 lines (strictly below 2,000 line ceiling).
+
 
 
 

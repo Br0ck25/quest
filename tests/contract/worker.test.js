@@ -14,8 +14,8 @@ test('Worker health route returns ok and phase status', async () => {
   assert.equal(data.status, 'ok');
   assert.equal(data.game, 'QUEST: Kentucky');
   assert.equal(data.gradeBand, '6-8');
-  assert.equal(data.phase, 6);
-  assert.equal(data.mode, 'multiplayer-coop');
+  assert.equal(data.phase, 7);
+  assert.equal(data.mode, '1v1-duels');
 });
 
 test('Worker root returns semantic HTML with responsive canvas and UI root', async () => {
@@ -526,6 +526,162 @@ test('Worker blocks brute force guessing of room codes with 429 status', async (
   const blockedData = await blockedRes.json();
   assert.equal(blockedData.rateLimited, true);
 });
+
+test('Worker handles 1v1 duel match lifecycle, delayed reveal, and post-match recap', async () => {
+  const hostId = 'duel_host_' + Math.random().toString(36).substring(2, 6);
+  const challengerId = 'duel_chal_' + Math.random().toString(36).substring(2, 6);
+
+  // 1. Create Duel
+  const createReq = new Request('http://localhost/api/duels/create', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ hostId, hostHandle: 'HostScholar' }),
+  });
+  const createRes = await worker.fetch(createReq, {}, {});
+  assert.equal(createRes.status, 200);
+  const createData = await createRes.json();
+  assert.equal(createData.success, true);
+  assert.ok(createData.match.code.startsWith('DUEL-'));
+  assert.equal(createData.match.status, 'LOBBY');
+
+  const duelCode = createData.match.code;
+
+  // 2. Join Duel
+  const joinReq = new Request('http://localhost/api/duels/join', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code: duelCode, userId: challengerId, handle: 'ChallengerScholar' }),
+  });
+  const joinRes = await worker.fetch(joinReq, {}, {});
+  assert.equal(joinRes.status, 200);
+  const joinData = await joinRes.json();
+  assert.equal(joinData.success, true);
+  assert.equal(joinData.match.player2.userId, challengerId);
+
+  // 3. Challenger readies up
+  const readyReq = new Request('http://localhost/api/duels/ready', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code: duelCode, userId: challengerId, ready: true }),
+  });
+  const readyRes = await worker.fetch(readyReq, {}, {});
+  assert.equal(readyRes.status, 200);
+
+  // 4. Host starts duel
+  const startReq = new Request('http://localhost/api/duels/start', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code: duelCode, userId: hostId }),
+  });
+  const startRes = await worker.fetch(startReq, {}, {});
+  assert.equal(startRes.status, 200);
+  const startData = await startRes.json();
+  assert.equal(startData.match.status, 'IN_PROGRESS');
+  assert.ok(startData.match.question);
+  assert.equal('answerKey' in startData.match.question, false, 'Client must not see answerKey');
+
+  // 5. Host answers (waiting for opponent, answer key remains hidden)
+  const hostChoice = startData.match.question.choices[0].id;
+  const answer1Req = new Request('http://localhost/api/duels/answer', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      code: duelCode,
+      userId: hostId,
+      choiceId: hostChoice,
+      timeElapsedMs: 4000,
+      idempotencyKey: 'idem_d1_' + Math.random().toString(36).substring(2, 8),
+    }),
+  });
+  const answer1Res = await worker.fetch(answer1Req, {}, {});
+  assert.equal(answer1Res.status, 200);
+  const answer1Data = await answer1Res.json();
+  assert.equal(answer1Data.verdict.bothSubmitted, false);
+  assert.equal(answer1Data.verdict.waitingForOpponent, true);
+
+  // 6. Challenger answers (triggers round evaluation and delayed reveal)
+  // Retrieve challenger's choice order
+  const chalStatusReq = new Request(`http://localhost/api/duels/status?code=${duelCode}&userId=${challengerId}`);
+  const chalStatusRes = await worker.fetch(chalStatusReq, {}, {});
+  const chalStatusData = await chalStatusRes.json();
+  const chalChoice = chalStatusData.match.question.choices[0].id;
+
+  const answer2Req = new Request('http://localhost/api/duels/answer', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      code: duelCode,
+      userId: challengerId,
+      choiceId: chalChoice,
+      timeElapsedMs: 5000,
+      idempotencyKey: 'idem_d2_' + Math.random().toString(36).substring(2, 8),
+    }),
+  });
+  const answer2Res = await worker.fetch(answer2Req, {}, {});
+  assert.equal(answer2Res.status, 200);
+  const answer2Data = await answer2Res.json();
+  assert.equal(answer2Data.verdict.bothSubmitted, true);
+  assert.ok(answer2Data.verdict.roundResult);
+  assert.equal(answer2Data.verdict.roundResult.revealed, true);
+
+  // 7. Advance to next round
+  const nextReq = new Request('http://localhost/api/duels/next-round', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code: duelCode, userId: hostId }),
+  });
+  const nextRes = await worker.fetch(nextReq, {}, {});
+  assert.equal(nextRes.status, 200);
+  const nextData = await nextRes.json();
+  assert.equal(nextData.success, true);
+
+  // 8. Send emote
+  const emoteReq = new Request('http://localhost/api/duels/emote', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code: duelCode, userId: hostId, emoteId: 'cheer' }),
+  });
+  const emoteRes = await worker.fetch(emoteReq, {}, {});
+  assert.equal(emoteRes.status, 200);
+  const emoteData = await emoteRes.json();
+  assert.equal(emoteData.broadcastData.emote.id, 'cheer');
+
+  // 9. Fetch recap
+  const recapReq = new Request(`http://localhost/api/duels/recap?code=${duelCode}`);
+  const recapRes = await worker.fetch(recapReq, {}, {});
+  assert.equal(recapRes.status, 200);
+  const recapData = await recapRes.json();
+  assert.equal(recapData.success, true);
+  assert.ok(recapData.recap.player1);
+  assert.ok(recapData.recap.player2);
+});
+
+test('Worker blocks brute force guessing of duel codes with 429 status', async () => {
+  const suspectIp = '198.51.101.' + Math.floor(Math.random() * 200);
+
+  // 5 failed guesses
+  for (let i = 0; i < 5; i++) {
+    const req = new Request('http://localhost/api/duels/join', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'cf-connecting-ip': suspectIp },
+      body: JSON.stringify({ code: 'DUEL-0000', userId: 'suspect_duelist', handle: 'Suspect' }),
+    });
+    const res = await worker.fetch(req, {}, {});
+    assert.equal(res.status, 400);
+  }
+
+  // 6th guess is rate limited with 429
+  const blockedReq = new Request('http://localhost/api/duels/join', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'cf-connecting-ip': suspectIp },
+    body: JSON.stringify({ code: 'DUEL-0000', userId: 'suspect_duelist', handle: 'Suspect' }),
+  });
+  const blockedRes = await worker.fetch(blockedReq, {}, {});
+  assert.equal(blockedRes.status, 429);
+  const blockedData = await blockedRes.json();
+  assert.equal(blockedData.rateLimited, true);
+});
+
 
 
 

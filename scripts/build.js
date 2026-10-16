@@ -43,16 +43,15 @@ function stripModules(code) {
     .replace(/^export\s*\{[\s\S]*?\};?\n?/gm, '')
     // Strip block comments for line economy in generated artifact
     .replace(/\/\*[\s\S]*?\*\//g, '')
-    // Strip standalone comment lines
-    .replace(/^\s*\/\/.*$/gm, '')
+    // Strip both standalone and inline comments (preserving http:// or data: urls)
+    .replace(/(^|[^:])\/\/.*$/gm, '$1')
     // Collapse consecutive empty lines
     .replace(/\n\s*\n+/g, '\n')
     .trim();
 }
 
 function condenseObjects(code) {
-  const stripped = stripModules(code).replace(/,\s*\/\/.*$/gm, ',');
-  return stripped
+  return stripModules(code)
     .replace(/,\n\s*/g, ', ')
     .replace(/\{\n\s*/g, '{ ')
     .replace(/\n\s*\}/g, ' }')
@@ -73,6 +72,7 @@ function build() {
   const spacedRepetitionCode = fs.readFileSync(path.join(srcDir, 'data', 'spaced-repetition.js'), 'utf8');
   const dbCode = fs.readFileSync(path.join(srcDir, 'server', 'db.js'), 'utf8');
   const roomsCode = fs.readFileSync(path.join(srcDir, 'server', 'rooms.js'), 'utf8');
+  const duelsCode = fs.readFileSync(path.join(srcDir, 'server', 'duels.js'), 'utf8');
   const workerCode = fs.readFileSync(path.join(srcDir, 'server', 'worker.js'), 'utf8');
   const spritesCode = fs.readFileSync(path.join(srcDir, 'client', 'sprites.js'), 'utf8');
   const audioCode = fs.readFileSync(path.join(srcDir, 'client', 'audio.js'), 'utf8');
@@ -93,6 +93,7 @@ function build() {
     { name: 'spaced-repetition.js', code: spacedRepetitionCode },
     { name: 'db.js', code: dbCode },
     { name: 'rooms.js', code: roomsCode },
+    { name: 'duels.js', code: duelsCode },
     { name: 'worker.js', code: workerCode },
     { name: 'sprites.js', code: spritesCode },
     { name: 'audio.js', code: audioCode },
@@ -152,7 +153,7 @@ function build() {
 // GENERATED ARTIFACT — DO NOT EDIT DIRECTLY. Source files are in src/
 // Target: Copy-paste to Cloudflare Workers Quick Edit or deploy via Wrangler.
 
-${stripModules(constantsCode)}
+${condenseObjects(constantsCode)}
 
 ${condenseObjects(gameDataCode)}
 
@@ -160,13 +161,15 @@ ${condenseObjects(progressionCode)}
 
 ${condenseObjects(questionsCode)}
 
-${stripModules(questionSchemaCode)}
+${condenseObjects(questionSchemaCode)}
 
-${stripModules(spacedRepetitionCode)}
+${condenseObjects(spacedRepetitionCode)}
 
-${stripModules(dbCode)}
+${condenseObjects(dbCode)}
 
-${stripModules(roomsCode)}
+${condenseObjects(roomsCode)}
+
+${condenseObjects(duelsCode)}
 
 const GAME_CSS = ${JSON.stringify(minifiedCss)};
 

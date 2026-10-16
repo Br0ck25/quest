@@ -2,8 +2,8 @@
 
 > **Responsive Browser RPG for Middle Grades (Grades 6–8) preparing for KAAC Governor's Cup Academic Competition.**
 
-[![Tests](https://img.shields.io/badge/tests-115%20passing-brightgreen)](#testing)
-[![Phase](https://img.shields.io/badge/phase-6%20multiplayer%20co--op-blue)](#phase-6-multiplayer-co-op-rooms-websockets--authoritative-boss-combat)
+[![Tests](https://img.shields.io/badge/tests-126%20passing-brightgreen)](#testing)
+[![Phase](https://img.shields.io/badge/phase-7%201v1%20knowledge%20duels-blue)](#phase-7-1v1-knowledge-duels-balanced-scoring--delayed-answer-reveals)
 [![Cloudflare Workers](https://img.shields.io/badge/deployment-Cloudflare%20Workers-orange)](#deployment)
 
 ---
@@ -194,7 +194,44 @@ Phase 6 implements synchronized multiplayer co-op encounters with private room c
 
 ---
 
-## 8. Architecture Principles
+## 8. Phase 7: 1v1 Knowledge Duels, Balanced Scoring & Delayed Answer Reveals
+
+Phase 7 implements private-code 1v1 head-to-head academic duels tailored for fair, sportsmanlike classroom competition:
+
+### Private Match Creation & Choice Shuffling (`src/server/duels.js`)
+- **Private Room Codes**: Child-friendly codes formatted as `DUEL-XXXX` (e.g. `DUEL-4829`).
+- **Choice Shuffling per Player**: Choices are deterministically permuted per player using a hash of the question and player ID, preventing screen peeking / shoulder surfing in close classroom settings.
+- **5-Round Curriculum Showcase**: Each duel features 5 sequential rounds covering all 5 Governor's Cup subjects (Math, Science, Social Studies, Language Arts, Arts & Humanities).
+
+### Delayed Answer Reveal Policy & Answer Key Secrecy
+- **No Early Answer Leakage**: Neither player sees the answer key or their opponent's choice while the round is active.
+- **Synchronized Reveal**: Answers and explanations are revealed only after both players submit or when the 20-second round timer expires.
+
+### Authoritative Balanced Scoring
+- **Accuracy is Primary**: Correct answers award a base of 100 points. Incorrect answers award 0 points.
+- **Speed Bonus as Capped Tiebreaker**: Correct answers earn an additional speed bonus capped at 10 points based on remaining time. An accurate player always beats a fast but inaccurate player (100 pts vs 0 pts).
+- **Tie Resolution**: Ties are cleanly detected and celebrated as honorable scholar stalemates.
+
+### Respectful Post-Match Recap & Disconnect Grace
+- **Sportsmanlike Recap**: Comprehensive summary detailing winner, final scores, accuracy percentages, average response times, and round-by-round breakdown.
+- **45s Reconnect Grace**: Disconnected players can re-enter their match without losing answers or exposing future questions.
+- **Rate Limit Protection**: Blocks brute-force guessing of duel room codes (HTTP 429 after 5 failed attempts per 5 minutes).
+
+### Phase 7 API Endpoints
+- `POST /api/duels/create`: Create private 1v1 match (`{ hostId, hostHandle }`).
+- `POST /api/duels/join`: Join duel match via code.
+- `POST /api/duels/ready`: Toggle readiness state.
+- `POST /api/duels/start`: Host initiates match.
+- `POST /api/duels/answer`: Submit answer independently with delayed reveal check.
+- `POST /api/duels/next-round`: Advance to next curriculum round.
+- `POST /api/duels/emote`: Send preset emote.
+- `GET /api/duels/status`: Fetch player-tailored match snapshot.
+- `GET /api/duels/recap`: Retrieve post-match stats.
+- `GET /api/duels/ws`: Real-time WebSocket connection for low-latency duel sync.
+
+---
+
+## 9. Architecture Principles
 
 - **Zero External Raster Images**: 100% procedural Canvas 2D sprites & inline SVG icons.
 - **Zero External Audio Files**: Synthesized procedural Web Audio API sound effects.

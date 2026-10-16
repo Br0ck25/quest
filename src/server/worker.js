@@ -6,6 +6,7 @@ import { computeSubjectProgress, getDueReviews } from '../data/spaced-repetition
 import { COSMETIC_CATALOG, STARTER_COMPANION } from '../data/progression.js';
 import { DatabaseAdapter } from './db.js';
 import { RoomManager, PRESET_EMOTES, ROOM_STATES } from './rooms.js';
+import { DuelManager, DUEL_STATES } from './duels.js';
 import { GAME_CSS } from '../client/styles.js';
 
 // In-memory catalog, database adapter, and idempotency store for Cloudflare edge worker
@@ -13,6 +14,7 @@ const QUESTION_CATALOG = [...SYNTHETIC_QUESTIONS];
 const IDEMPOTENCY_STORE = new Map();
 const defaultDb = new DatabaseAdapter();
 const defaultRoomManager = new RoomManager();
+const defaultDuelManager = new DuelManager();
 
 export function createManifest() {
   const svgIcon192 = `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192"><rect width="192" height="192" rx="36" fill="${PALETTE.BG_DARK}"/><polygon points="96 28 156 64 156 128 96 164 36 128 36 64" fill="${PALETTE.SURFACE}" stroke="${PALETTE.BORDER_FOCUS}" stroke-width="8"/><circle cx="96" cy="96" r="32" fill="${PALETTE.MATH}"/><polygon points="96 74 114 108 78 108" fill="${PALETTE.GOLD}"/></svg>`;
@@ -157,9 +159,9 @@ export default {
         headers: { 'Content-Type': 'application/json', ...securityHeaders },
       });
 
-    // Health check endpoint (Phase 6)
+    // Health check endpoint (Phase 7)
     if (url.pathname === '/api/health') {
-      return json({ status: 'ok', game: 'QUEST: Kentucky', gradeBand: '6-8', phase: 6, mode: 'multiplayer-coop' });
+      return json({ status: 'ok', game: 'QUEST: Kentucky', gradeBand: '6-8', phase: 7, mode: '1v1-duels' });
     }
 
     // Public Question Delivery endpoint (Sanitized, Rights-Gated)
@@ -616,6 +618,244 @@ export default {
 
       serverWs.addEventListener('error', () => {
         room.handleDisconnect(userId);
+      });
+
+      return new Response(null, {
+        status: 101,
+        webSocket: clientWs,
+      });
+    }
+
+    // 1v1 Duels: Create Duel Match
+    if (url.pathname === '/api/duels/create' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const hostId = body?.hostId || request.headers.get('x-guest-id') || 'guest_duel_host';
+        const hostHandle = body?.hostHandle || 'BluegrassDuelist';
+        const match = defaultDuelManager.createDuel(hostId, hostHandle);
+        return json({ success: true, match: match.getSnapshot(hostId) });
+      } catch {
+        return json({ error: 'Invalid JSON payload' }, 400);
+      }
+    }
+
+    // 1v1 Duels: Join Duel Match
+    if (url.pathname === '/api/duels/join' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const { code, handle } = body || {};
+        const userId = body?.userId || request.headers.get('x-guest-id') || 'guest_challenger';
+        const clientKey = request.headers.get('cf-connecting-ip') || userId;
+
+        if (!code) return json({ error: 'Duel code is required' }, 400);
+
+        const result = defaultDuelManager.joinDuel(code, userId, handle || 'CardinalChallenger', clientKey);
+        if (!result.success) {
+          const status = result.rateLimited ? 429 : 400;
+          return json({ error: result.error, rateLimited: Boolean(result.rateLimited) }, status);
+        }
+
+        result.match.broadcastSnapshot('OPPONENT_JOINED');
+        return json({ success: true, match: result.snapshot });
+      } catch {
+        return json({ error: 'Invalid JSON payload' }, 400);
+      }
+    }
+
+    // 1v1 Duels: Toggle Ready State
+    if (url.pathname === '/api/duels/ready' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const { code, ready } = body || {};
+        const userId = body?.userId || request.headers.get('x-guest-id') || 'guest_default';
+
+        const match = defaultDuelManager.getDuel(code);
+        if (!match) return json({ error: 'Duel match not found or expired' }, 404);
+
+        const updated = match.setReady(userId, ready !== false);
+        if (!updated) return json({ error: 'User is not in this duel match' }, 400);
+
+        match.broadcastSnapshot('PLAYER_READY');
+        return json({ success: true, match: match.getSnapshot(userId) });
+      } catch {
+        return json({ error: 'Invalid JSON payload' }, 400);
+      }
+    }
+
+    // 1v1 Duels: Start Duel Match
+    if (url.pathname === '/api/duels/start' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const { code } = body || {};
+        const userId = body?.userId || request.headers.get('x-guest-id') || 'guest_default';
+
+        const match = defaultDuelManager.getDuel(code);
+        if (!match) return json({ error: 'Duel match not found or expired' }, 404);
+
+        if (match.player1.userId !== userId) {
+          return json({ error: 'Only the match host can start the duel' }, 403);
+        }
+
+        const approvedQuestions = QUESTION_CATALOG.filter((q) => q.active && q.rightsStatus === 'approved');
+        const startRes = match.startDuel(approvedQuestions);
+        if (!startRes.success) return json({ error: startRes.error }, 400);
+
+        match.broadcastSnapshot('DUEL_STARTED');
+        return json({ success: true, match: match.getSnapshot(userId) });
+      } catch {
+        return json({ error: 'Invalid JSON payload' }, 400);
+      }
+    }
+
+    // 1v1 Duels: Independent Answer Submission with Delayed Reveal Policy
+    if (url.pathname === '/api/duels/answer' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const { code, choiceId, timeElapsedMs, idempotencyKey } = body || {};
+        const userId = body?.userId || request.headers.get('x-guest-id') || 'guest_default';
+
+        const match = defaultDuelManager.getDuel(code);
+        if (!match) return json({ error: 'Duel match not found or expired' }, 404);
+
+        const verdict = match.submitAnswer(userId, choiceId, timeElapsedMs, idempotencyKey);
+        if (!verdict.success) {
+          return json({ error: verdict.error, duplicate: Boolean(verdict.duplicate) }, 400);
+        }
+
+        if (verdict.bothSubmitted) {
+          match.broadcastSnapshot('ROUND_REVEAL');
+        } else {
+          match.broadcastSnapshot('ANSWER_SUBMITTED_WAITING');
+        }
+
+        return json({ success: true, verdict, match: match.getSnapshot(userId) });
+      } catch {
+        return json({ error: 'Invalid JSON payload' }, 400);
+      }
+    }
+
+    // 1v1 Duels: Advance to Next Round or Finish
+    if (url.pathname === '/api/duels/next-round' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const { code } = body || {};
+        const userId = body?.userId || request.headers.get('x-guest-id') || 'guest_default';
+
+        const match = defaultDuelManager.getDuel(code);
+        if (!match) return json({ error: 'Duel match not found or expired' }, 404);
+
+        const nextRes = match.nextRound();
+        if (!nextRes.success) return json({ error: nextRes.error }, 400);
+
+        match.broadcastSnapshot(nextRes.finished ? 'DUEL_FINISHED' : 'NEW_ROUND');
+        return json({ success: true, nextRes, match: match.getSnapshot(userId) });
+      } catch {
+        return json({ error: 'Invalid JSON payload' }, 400);
+      }
+    }
+
+    // 1v1 Duels: Send Preset Emote
+    if (url.pathname === '/api/duels/emote' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const { code, emoteId } = body || {};
+        const userId = body?.userId || request.headers.get('x-guest-id') || 'guest_default';
+
+        const match = defaultDuelManager.getDuel(code);
+        if (!match) return json({ error: 'Duel match not found or expired' }, 404);
+
+        const result = match.sendPresetEmote(userId, emoteId);
+        if (!result.success) return json({ error: result.error }, 400);
+
+        match.broadcast(result.broadcastData);
+        return json({ success: true, broadcastData: result.broadcastData });
+      } catch {
+        return json({ error: 'Invalid JSON payload' }, 400);
+      }
+    }
+
+    // 1v1 Duels: Fetch Match Status & User-Tailored Snapshot
+    if (url.pathname === '/api/duels/status' && request.method === 'GET') {
+      const code = url.searchParams.get('code');
+      const userId = url.searchParams.get('userId') || request.headers.get('x-guest-id');
+      const match = defaultDuelManager.getDuel(code);
+      if (!match) return json({ error: 'Duel match not found or expired' }, 404);
+
+      return json({ success: true, match: match.getSnapshot(userId) });
+    }
+
+    // 1v1 Duels: Respectful Post-Match Recap
+    if (url.pathname === '/api/duels/recap' && request.method === 'GET') {
+      const code = url.searchParams.get('code');
+      const match = defaultDuelManager.getDuel(code);
+      if (!match) return json({ error: 'Duel match not found or expired' }, 404);
+
+      return json({ success: true, recap: match.getRecap() });
+    }
+
+    // 1v1 Duels: Real-Time WebSocket Connection
+    if (url.pathname === '/api/duels/ws') {
+      const upgradeHeader = request.headers.get('Upgrade');
+      if (!upgradeHeader || upgradeHeader.toLowerCase() !== 'websocket') {
+        return json({ error: 'Expected WebSocket Upgrade header' }, 426);
+      }
+
+      const code = url.searchParams.get('code');
+      const userId = url.searchParams.get('userId');
+      const match = defaultDuelManager.getDuel(code);
+      if (!match) {
+        return json({ error: 'Duel match not found or expired' }, 404);
+      }
+
+      if (typeof WebSocketPair === 'undefined') {
+        return json({ error: 'WebSocketPair is not supported in this runtime environment' }, 501);
+      }
+
+      const webSocketPair = new WebSocketPair();
+      const [clientWs, serverWs] = Object.values(webSocketPair);
+
+      serverWs.accept();
+      match.reconnect(userId, serverWs);
+      serverWs.send(JSON.stringify({ type: 'CONNECTED', snapshot: match.getSnapshot(userId) }));
+
+      serverWs.addEventListener('message', (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.type === 'READY') {
+            match.setReady(userId, msg.ready !== false);
+            match.broadcastSnapshot('PLAYER_READY');
+          } else if (msg.type === 'START' && match.player1.userId === userId) {
+            const approvedQuestions = QUESTION_CATALOG.filter((q) => q.active && q.rightsStatus === 'approved');
+            match.startDuel(approvedQuestions);
+            match.broadcastSnapshot('DUEL_STARTED');
+          } else if (msg.type === 'ANSWER') {
+            const verdict = match.submitAnswer(userId, msg.choiceId, msg.timeElapsedMs, msg.idempotencyKey);
+            if (verdict.bothSubmitted) {
+              match.broadcastSnapshot('ROUND_REVEAL');
+            } else {
+              match.broadcastSnapshot('ANSWER_SUBMITTED_WAITING');
+            }
+          } else if (msg.type === 'NEXT_ROUND') {
+            const nextRes = match.nextRound();
+            match.broadcastSnapshot(nextRes.finished ? 'DUEL_FINISHED' : 'NEW_ROUND');
+          } else if (msg.type === 'EMOTE') {
+            const emoteRes = match.sendPresetEmote(userId, msg.emoteId);
+            if (emoteRes.success) {
+              match.broadcast(emoteRes.broadcastData);
+            }
+          }
+        } catch {
+          // ignore malformed ws message
+        }
+      });
+
+      serverWs.addEventListener('close', () => {
+        match.handleDisconnect(userId);
+        match.broadcastSnapshot('OPPONENT_DISCONNECTED');
+      });
+
+      serverWs.addEventListener('error', () => {
+        match.handleDisconnect(userId);
       });
 
       return new Response(null, {
