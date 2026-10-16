@@ -2,11 +2,15 @@ import { PALETTE, SUBJECTS, VIEWPORT } from '../data/constants.js';
 import { STARTER_QUESTS } from '../data/game-data.js';
 import { SYNTHETIC_QUESTIONS, DUNGEON_ENCOUNTERS, sanitizeQuestionForClient } from '../data/questions.js';
 import { validateQuestion, detectDuplicates, importQuestions } from '../data/question-schema.js';
+import { computeSubjectProgress, getDueReviews } from '../data/spaced-repetition.js';
+import { DatabaseAdapter } from './db.js';
 import { GAME_CSS } from '../client/styles.js';
 
-// In-memory catalog and idempotency store for Cloudflare edge worker
+// In-memory catalog, database adapter, and idempotency store for Cloudflare edge worker
 const QUESTION_CATALOG = [...SYNTHETIC_QUESTIONS];
 const IDEMPOTENCY_STORE = new Map();
+const defaultDb = new DatabaseAdapter();
+
 
 
 export function createManifest() {
@@ -137,6 +141,7 @@ ${clientJsBundle}
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    const db = env && env.DB ? new DatabaseAdapter(env.DB) : defaultDb;
 
     // Standard security headers
     const securityHeaders = {
@@ -145,14 +150,14 @@ export default {
       'Referrer-Policy': 'strict-origin-when-cross-origin',
     };
 
-    // Health check endpoint (Phase 3)
+    // Health check endpoint (Phase 4)
     if (url.pathname === '/api/health') {
       return new Response(JSON.stringify({
         status: 'ok',
         game: 'QUEST: Kentucky',
         gradeBand: '6-8',
-        phase: 3,
-        mode: 'question-schema-and-rights-gate',
+        phase: 4,
+        mode: 'd1-persistence-and-spaced-repetition',
       }), {
         headers: {
           'Content-Type': 'application/json',
@@ -323,11 +328,59 @@ export default {
       });
     }
 
-    // Server-Authoritative Answer Validation endpoint with Rights Gate & Idempotency
+    // Student Concept Mastery Progress endpoint across the 5 KAAC subject realms
+    if (url.pathname === '/api/progress' && request.method === 'GET') {
+      const userId = url.searchParams.get('userId') || request.headers.get('x-guest-id') || 'guest_default';
+      const masteryList = await db.getUserMasteryList(userId);
+      const progress = computeSubjectProgress(masteryList, QUESTION_CATALOG);
+      const totalMastered = masteryList.filter((m) => m.isMastered).length;
+      const activeDueCount = getDueReviews(masteryList, Date.now()).length;
+
+      return new Response(JSON.stringify({
+        userId,
+        totalMastered,
+        activeDueCount,
+        progress,
+      }), {
+        headers: {
+          'Content-Type': 'application/json',
+          ...securityHeaders,
+        },
+      });
+    }
+
+    // Spaced Repetition Due Reviews endpoint
+    if (url.pathname === '/api/review/due' && request.method === 'GET') {
+      const userId = url.searchParams.get('userId') || request.headers.get('x-guest-id') || 'guest_default';
+      const masteryList = await db.getUserMasteryList(userId);
+      const dueRecords = getDueReviews(masteryList, Date.now());
+
+      const dueConceptIds = new Set(dueRecords.map((r) => r.conceptId));
+      const eligibleQuestions = QUESTION_CATALOG.filter((q) =>
+        q.active &&
+        q.rightsStatus === 'approved' &&
+        Array.isArray(q.conceptIds) &&
+        q.conceptIds.some((cid) => dueConceptIds.has(cid))
+      );
+
+      return new Response(JSON.stringify({
+        userId,
+        count: dueRecords.length,
+        dueConcepts: dueRecords,
+        eligibleQuestions: eligibleQuestions.map(sanitizeQuestionForClient),
+      }), {
+        headers: {
+          'Content-Type': 'application/json',
+          ...securityHeaders,
+        },
+      });
+    }
+
+    // Server-Authoritative Answer Validation endpoint with D1 Persistence & Spaced Repetition
     if (url.pathname === '/api/answers' && request.method === 'POST') {
       try {
         const body = await request.json();
-        const { questionId, selectedChoiceId, idempotencyKey } = body || {};
+        const { questionId, selectedChoiceId, idempotencyKey, assisted } = body || {};
 
         if (idempotencyKey && IDEMPOTENCY_STORE.has(idempotencyKey)) {
           return new Response(JSON.stringify(IDEMPOTENCY_STORE.get(idempotencyKey)), {
@@ -359,13 +412,16 @@ export default {
           });
         }
 
-        const isCorrect = selectedChoiceId === question.answerKey;
-        const verdict = {
-          accepted: true,
-          correct: isCorrect,
-          explanation: question.explanation,
-          conceptReviewScheduled: true,
-        };
+        const userId = body?.userId || body?.sessionId || request.headers.get('x-guest-id') || 'guest_default';
+        const verdict = await db.processAnswerAttempt({
+          userId,
+          question,
+          selectedChoiceId,
+          assisted: Boolean(assisted),
+          sessionId: body?.sessionId || null,
+          idempotencyKey,
+          now: Date.now(),
+        });
 
         if (idempotencyKey) {
           IDEMPOTENCY_STORE.set(idempotencyKey, verdict);

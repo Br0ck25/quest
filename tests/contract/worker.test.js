@@ -14,8 +14,8 @@ test('Worker health route returns ok and phase status', async () => {
   assert.equal(data.status, 'ok');
   assert.equal(data.game, 'QUEST: Kentucky');
   assert.equal(data.gradeBand, '6-8');
-  assert.equal(data.phase, 3);
-  assert.equal(data.mode, 'question-schema-and-rights-gate');
+  assert.equal(data.phase, 4);
+  assert.equal(data.mode, 'd1-persistence-and-spaced-repetition');
 });
 
 test('Worker root returns semantic HTML with responsive canvas and UI root', async () => {
@@ -276,4 +276,34 @@ test('Worker enforces idempotency on answer submissions (/api/answers)', async (
   const data2 = await res2.json();
   assert.deepEqual(data2, data1);
 });
+
+test('Worker serves student concept mastery progress (/api/progress)', async () => {
+  const req = new Request('http://localhost/api/progress?userId=student_test_progress');
+  const res = await worker.fetch(req, {}, {});
+  assert.equal(res.status, 200);
+
+  const data = await res.json();
+  assert.equal(data.userId, 'student_test_progress');
+  assert.equal(typeof data.totalMastered, 'number');
+  assert.equal(typeof data.activeDueCount, 'number');
+  assert.ok(data.progress);
+  assert.ok(data.progress.math);
+  assert.ok(data.progress.science);
+  assert.ok(data.progress.social_studies);
+  assert.ok(data.progress.language_arts);
+  assert.ok(data.progress.arts_humanities);
+});
+
+test('Worker serves spaced repetition due reviews endpoint (/api/review/due)', async () => {
+  const req = new Request('http://localhost/api/review/due?userId=student_test_due');
+  const res = await worker.fetch(req, {}, {});
+  assert.equal(res.status, 200);
+
+  const data = await res.json();
+  assert.equal(data.userId, 'student_test_due');
+  assert.equal(typeof data.count, 'number');
+  assert.ok(Array.isArray(data.dueConcepts));
+  assert.ok(Array.isArray(data.eligibleQuestions));
+});
+
 

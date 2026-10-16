@@ -138,4 +138,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
     - Unit test suite for question schema, rights gate, duplicate detection, and import workflow (19 tests).
     - Contract test suite expanded to test all Phase 3 endpoints and idempotency.
     - Total test suite expanded from 44 to 69 passing tests (0 failures).
+- **Phase 4: D1 Persistence, Attempt History & Spaced Repetition**:
+  - **Cloudflare D1 Relational Schema (`migrations/0001_initial_schema.sql`)**:
+    - Designed 7-table schema covering `users`, `concepts`, `questions`, `user_question_attempts`, `user_concept_mastery`, `wallet_ledger`, and `user_inventory`.
+    - Included indexing on attempts (user/question/created), mastery (user/concept/due), and ledger.
+  - **Deterministic 5-Stage Spaced Repetition Scheduler (`src/data/spaced-repetition.js`)**:
+    - Implemented interval ladder `[1, 3, 7, 14, 30]` days.
+    - Enforced multi-question verification: requires $\ge 3$ distinct questions answered correctly on distinct dates and stage $\ge 4$ to certify mastery.
+    - Added assistance penalty: assisted correct answers preserve the current interval without advancing stage.
+    - Added mistake reset: incorrect answers immediately reset interval stage to 0 (1-day review).
+    - Built `getDueReviews` and `computeSubjectProgress` calculating mastery across all 5 Governor's Cup subjects.
+  - **Unified Relational Database Adapter (`src/server/db.js`)**:
+    - Created `DatabaseAdapter` interface supporting Cloudflare D1 (`env.DB`) alongside an in-memory relational fallback for test and preview environments.
+    - Implemented atomic `processAnswerAttempt`, `getOrCreateUser`, `recordAttempt` (with idempotency check), and mastery tracking queries.
+  - **Secure Edge Worker API Endpoints (`src/server/worker.js` & `scripts/build.js`)**:
+    - `/api/health` updated to report Phase 4 and `d1-persistence-and-spaced-repetition` mode.
+    - `GET /api/progress`: returns subject mastery percentages, total concepts mastered, and due review counts.
+    - `GET /api/review/due`: queries due concept reviews and serves matching sanitized questions.
+    - `POST /api/answers`: integrated with atomic database attempt processing, returning spaced repetition stage, next review due timestamp, and mastery state.
+  - **Build Bundler & Line Budget Preservation (`scripts/build.js`)**:
+    - Bundled `spaced-repetition.js` and `db.js` into standalone `worker.js`.
+    - Generated artifact `worker.js` compiles to 1,876 lines (strictly below 2,000 line ceiling).
+  - **Unit & Contract Testing Suite (`tests/unit/spaced-repetition.test.js`, `tests/contract/worker.test.js`)**:
+    - Added 10 unit tests for intervals, assisted answers, streak resets, multi-question verification, and `DatabaseAdapter`.
+    - Added contract tests for `/api/progress`, `/api/review/due`, and Phase 4 answer evaluation.
+    - Total test suite expanded from 69 to 81 passing tests (0 failures across 8 test suites).
+
 

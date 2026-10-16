@@ -52,6 +52,8 @@ function build() {
   const gameDataCode = fs.readFileSync(path.join(srcDir, 'data', 'game-data.js'), 'utf8');
   const questionsCode = fs.readFileSync(path.join(srcDir, 'data', 'questions.js'), 'utf8');
   const questionSchemaCode = fs.readFileSync(path.join(srcDir, 'data', 'question-schema.js'), 'utf8');
+  const spacedRepetitionCode = fs.readFileSync(path.join(srcDir, 'data', 'spaced-repetition.js'), 'utf8');
+  const dbCode = fs.readFileSync(path.join(srcDir, 'server', 'db.js'), 'utf8');
   const spritesCode = fs.readFileSync(path.join(srcDir, 'client', 'sprites.js'), 'utf8');
   const audioCode = fs.readFileSync(path.join(srcDir, 'client', 'audio.js'), 'utf8');
   const inputCode = fs.readFileSync(path.join(srcDir, 'client', 'input.js'), 'utf8');
@@ -67,6 +69,8 @@ function build() {
     { name: 'game-data.js', code: gameDataCode },
     { name: 'questions.js', code: questionsCode },
     { name: 'question-schema.js', code: questionSchemaCode },
+    { name: 'spaced-repetition.js', code: spacedRepetitionCode },
+    { name: 'db.js', code: dbCode },
     { name: 'sprites.js', code: spritesCode },
     { name: 'audio.js', code: audioCode },
     { name: 'input.js', code: inputCode },
@@ -103,6 +107,8 @@ function build() {
     stripModules(questionsCode),
     '/* --- QUESTION SCHEMA & VALIDATION --- */',
     stripModules(questionSchemaCode),
+    '/* --- SPACED REPETITION ENGINE --- */',
+    stripModules(spacedRepetitionCode),
     '/* --- PROCEDURAL SPRITES & ICONS --- */',
     stripModules(spritesCode),
     '/* --- PROCEDURAL AUDIO SYNTHESIZER --- */',
@@ -132,8 +138,13 @@ ${stripModules(questionsCode)}
 
 ${stripModules(questionSchemaCode)}
 
+${stripModules(spacedRepetitionCode)}
+
+${stripModules(dbCode)}
+
 const QUESTION_CATALOG = [...SYNTHETIC_QUESTIONS];
 const IDEMPOTENCY_STORE = new Map();
+const defaultDb = new DatabaseAdapter();
 
 const GAME_CSS = ${JSON.stringify(minifiedCss)};
 
@@ -264,6 +275,7 @@ export function createHtmlShell() {
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    const db = env && env.DB ? new DatabaseAdapter(env.DB) : defaultDb;
 
     const securityHeaders = {
       'X-Content-Type-Options': 'nosniff',
@@ -271,14 +283,14 @@ export default {
       'Referrer-Policy': 'strict-origin-when-cross-origin',
     };
 
-    // Health check endpoint (Phase 3)
+    // Health check endpoint (Phase 4)
     if (url.pathname === '/api/health') {
       return new Response(JSON.stringify({
         status: 'ok',
         game: 'QUEST: Kentucky',
         gradeBand: '6-8',
-        phase: 3,
-        mode: 'question-schema-and-rights-gate',
+        phase: 4,
+        mode: 'd1-persistence-and-spaced-repetition',
       }), {
         headers: {
           'Content-Type': 'application/json',
@@ -446,10 +458,59 @@ export default {
       });
     }
 
+    // Student Concept Mastery Progress endpoint across the 5 KAAC subject realms
+    if (url.pathname === '/api/progress' && request.method === 'GET') {
+      const userId = url.searchParams.get('userId') || request.headers.get('x-guest-id') || 'guest_default';
+      const masteryList = await db.getUserMasteryList(userId);
+      const progress = computeSubjectProgress(masteryList, QUESTION_CATALOG);
+      const totalMastered = masteryList.filter((m) => m.isMastered).length;
+      const activeDueCount = getDueReviews(masteryList, Date.now()).length;
+
+      return new Response(JSON.stringify({
+        userId,
+        totalMastered,
+        activeDueCount,
+        progress,
+      }), {
+        headers: {
+          'Content-Type': 'application/json',
+          ...securityHeaders,
+        },
+      });
+    }
+
+    // Spaced Repetition Due Reviews endpoint
+    if (url.pathname === '/api/review/due' && request.method === 'GET') {
+      const userId = url.searchParams.get('userId') || request.headers.get('x-guest-id') || 'guest_default';
+      const masteryList = await db.getUserMasteryList(userId);
+      const dueRecords = getDueReviews(masteryList, Date.now());
+
+      const dueConceptIds = new Set(dueRecords.map((r) => r.conceptId));
+      const eligibleQuestions = QUESTION_CATALOG.filter((q) =>
+        q.active &&
+        q.rightsStatus === 'approved' &&
+        Array.isArray(q.conceptIds) &&
+        q.conceptIds.some((cid) => dueConceptIds.has(cid))
+      );
+
+      return new Response(JSON.stringify({
+        userId,
+        count: dueRecords.length,
+        dueConcepts: dueRecords,
+        eligibleQuestions: eligibleQuestions.map(sanitizeQuestionForClient),
+      }), {
+        headers: {
+          'Content-Type': 'application/json',
+          ...securityHeaders,
+        },
+      });
+    }
+
+    // Server-Authoritative Answer Validation endpoint with D1 Persistence & Spaced Repetition
     if (url.pathname === '/api/answers' && request.method === 'POST') {
       try {
         const body = await request.json();
-        const { questionId, selectedChoiceId, idempotencyKey } = body || {};
+        const { questionId, selectedChoiceId, idempotencyKey, assisted } = body || {};
 
         if (idempotencyKey && IDEMPOTENCY_STORE.has(idempotencyKey)) {
           return new Response(JSON.stringify(IDEMPOTENCY_STORE.get(idempotencyKey)), {
@@ -465,6 +526,7 @@ export default {
           });
         }
 
+        // Rights gate check: item must be active and approved to be answerable
         if (!question.active || question.rightsStatus !== 'approved') {
           return new Response(JSON.stringify({ error: 'Question is not active or rights status is unapproved' }), {
             status: 403,
@@ -480,13 +542,16 @@ export default {
           });
         }
 
-        const isCorrect = selectedChoiceId === question.answerKey;
-        const verdict = {
-          accepted: true,
-          correct: isCorrect,
-          explanation: question.explanation,
-          conceptReviewScheduled: true,
-        };
+        const userId = body?.userId || body?.sessionId || request.headers.get('x-guest-id') || 'guest_default';
+        const verdict = await db.processAnswerAttempt({
+          userId,
+          question,
+          selectedChoiceId,
+          assisted: Boolean(assisted),
+          sessionId: body?.sessionId || null,
+          idempotencyKey,
+          now: Date.now(),
+        });
 
         if (idempotencyKey) {
           IDEMPOTENCY_STORE.set(idempotencyKey, verdict);

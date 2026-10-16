@@ -2,8 +2,8 @@
 
 > **Responsive Browser RPG for Middle Grades (Grades 6–8) preparing for KAAC Governor's Cup Academic Competition.**
 
-[![Tests](https://img.shields.io/badge/tests-69%20passing-brightgreen)](#testing)
-[![Phase](https://img.shields.io/badge/phase-3%20question%20schema%20%26%20rights%20gate-blue)](#phase-3-question-schema-and-rights-gate)
+[![Tests](https://img.shields.io/badge/tests-81%20passing-brightgreen)](#testing)
+[![Phase](https://img.shields.io/badge/phase-4%20D1%20persistence%20%26%20spaced%20repetition-blue)](#phase-4-d1-persistence-attempt-history-and-spaced-repetition)
 [![Cloudflare Workers](https://img.shields.io/badge/deployment-Cloudflare%20Workers-orange)](#deployment)
 
 ---
@@ -105,7 +105,32 @@ To aid human content reviewers, `detectDuplicates` normalizes prompts, computes 
 
 ---
 
-## 5. Architecture Principles
+## 5. Phase 4: D1 Persistence, Attempt History & Spaced Repetition
+
+Phase 4 establishes persistent relational tracking, tamper-resistant attempt audits, and deterministic spaced repetition mastery:
+
+### Cloudflare D1 Relational Schema (`migrations/0001_initial_schema.sql`)
+- `users`: Pseudonymous player profiles (`id`, `handle`, `role`, timestamps).
+- `concepts`: Canonical curriculum nodes mapped to Governor's Cup subjects and grade bands.
+- `questions`: Question metadata, provenance, and rights status.
+- `user_question_attempts`: Server-authoritative audit log of every question interaction with timestamps, duration, assistance flags, and idempotency protection.
+- `user_concept_mastery`: Spaced repetition state tracking review interval stages (0–5), next due timestamps, and multi-question verification.
+- `wallet_ledger` & `user_inventory`: Persistent guest/player economy and inventory assets.
+
+### Deterministic 5-Stage Spaced Repetition Algorithm (`src/data/spaced-repetition.js`)
+- **Interval Progression**: Reviews advance through `[1, 3, 7, 14, 30]` day intervals on unassisted correct answers.
+- **Mastery Verification**: Requires answering $\ge 3$ distinct questions correctly on separate calendar dates and reaching stage $\ge 4$ before certifying concept mastery.
+- **Assistance Penalty**: Assisted correct answers (`assisted: true`) preserve the current interval without advancing stage.
+- **Mistake Reset**: Any incorrect answer resets the concept interval stage to 0 (1-day review) to reinforce fundamentals.
+
+### Progress & Spaced Repetition API Endpoints
+- `GET /api/progress`: Returns aggregate mastery percentages across all 5 Governor's Cup subjects, total mastered concepts, and active due review counts.
+- `GET /api/review/due`: Queries concepts currently due for review and serves matching sanitized questions.
+- `POST /api/answers`: Atomic attempt processing that records audit logs, updates spaced repetition schedules, awards XP/Gold, and returns updated mastery stage.
+
+---
+
+## 6. Architecture Principles
 
 - **Zero External Raster Images**: 100% procedural Canvas 2D sprites & inline SVG icons.
 - **Zero External Audio Files**: Synthesized procedural Web Audio API sound effects.
