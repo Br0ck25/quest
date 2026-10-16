@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS coop_rooms (
   id TEXT PRIMARY KEY,
   code TEXT NOT NULL,
   host_user_id TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'LOBBY', -- 'LOBBY' | 'ENCOUNTER' | 'VICTORY' | 'DEFEATED' | 'EXPIRED'
+  status TEXT NOT NULL DEFAULT 'LOBBY',
   created_at INTEGER NOT NULL,
   completed_at INTEGER
 );
@@ -15,7 +15,7 @@ CREATE INDEX IF NOT EXISTS idx_coop_rooms_code ON coop_rooms(code);
 CREATE TABLE IF NOT EXISTS coop_room_participants (
   room_id TEXT NOT NULL,
   user_id TEXT NOT NULL,
-  role TEXT NOT NULL DEFAULT 'member', -- 'host' | 'member'
+  role TEXT NOT NULL DEFAULT 'member',
   score INTEGER NOT NULL DEFAULT 0,
   questions_correct INTEGER NOT NULL DEFAULT 0,
   joined_at INTEGER NOT NULL,

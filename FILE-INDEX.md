@@ -22,6 +22,7 @@
 | [`.gitignore`](file:///c:/Users/James/Downloads/Quest/.gitignore) | Git ignore list for dependencies, Wrangler artifacts, and temp files. |
 | [`scripts/build.js`](file:///c:/Users/James/Downloads/Quest/scripts/build.js) | Bundler script that compiles modular `src/` into the standalone `worker.js`. |
 | [`scripts/dev-server.js`](file:///c:/Users/James/Downloads/Quest/scripts/dev-server.js) | Local preview HTTP server simulating the Cloudflare Worker fetch runtime. |
+| [`migrations/0000_complete_schema.sql`](file:///c:/Users/James/Downloads/Quest/migrations/0000_complete_schema.sql) | D1 SQL unified schema: complete database schema across all phases (Phases 1–6). |
 | [`migrations/0001_initial_schema.sql`](file:///c:/Users/James/Downloads/Quest/migrations/0001_initial_schema.sql) | D1 SQL migration: pseudonymous users, questions, attempts, mastery, ledger, and inventory. |
 | [`migrations/0002_progression_and_rewards.sql`](file:///c:/Users/James/Downloads/Quest/migrations/0002_progression_and_rewards.sql) | D1 SQL migration: user progression tracking and quest completion records. |
 | [`migrations/0003_multiplayer_rooms.sql`](file:///c:/Users/James/Downloads/Quest/migrations/0003_multiplayer_rooms.sql) | D1 SQL migration: co-op multiplayer room session and participant tables. |
