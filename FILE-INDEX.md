@@ -17,6 +17,7 @@
 | [`AI_AGENTS.md`](file:///c:/Users/James/Downloads/Quest/AI_AGENTS.md) | Quick reference cheat sheet for AI pair programming sessions. |
 | [`CHANGELOG.md`](file:///c:/Users/James/Downloads/Quest/CHANGELOG.md) | Chronological log of migrations, features, and governance updates. |
 | [`package.json`](file:///c:/Users/James/Downloads/Quest/package.json) | Node package configuration with build, test, and dev scripts. |
+| [`wrangler.json`](file:///c:/Users/James/Downloads/Quest/wrangler.json) | Cloudflare Worker configuration targeting generated worker.js artifact. |
 | [`.gitignore`](file:///c:/Users/James/Downloads/Quest/.gitignore) | Git ignore list for dependencies, Wrangler artifacts, and temp files. |
 | [`scripts/build.js`](file:///c:/Users/James/Downloads/Quest/scripts/build.js) | Bundler script that compiles modular `src/` into the standalone `worker.js`. |
 | [`scripts/dev-server.js`](file:///c:/Users/James/Downloads/Quest/scripts/dev-server.js) | Local preview HTTP server simulating the Cloudflare Worker fetch runtime. |
