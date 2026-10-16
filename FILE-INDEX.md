@@ -25,6 +25,7 @@
 | [`src/data/constants.js`](file:///c:/Users/James/Downloads/Quest/src/data/constants.js) | Centralized project constants (dimensions, palette tokens, subject mappings, intervals). |
 | [`src/data/game-data.js`](file:///c:/Users/James/Downloads/Quest/src/data/game-data.js) | Child-safe pseudonymous handle generator, starter quests, and starter inventory. |
 | [`src/data/questions.js`](file:///c:/Users/James/Downloads/Quest/src/data/questions.js) | Synthetic KAAC Middle Grades question bank and 5-encounter dungeon definition. |
+| [`src/data/question-schema.js`](file:///c:/Users/James/Downloads/Quest/src/data/question-schema.js) | Question schema validation, rights gate enforcement, duplicate detection, and import workflow. |
 | [`src/client/sprites.js`](file:///c:/Users/James/Downloads/Quest/src/client/sprites.js) | Procedural 8x8 hero/NPC/enemy sprite matrices, offscreen tile atlas, and SVG icons. |
 | [`src/client/audio.js`](file:///c:/Users/James/Downloads/Quest/src/client/audio.js) | Procedural Web Audio FX synthesizer for clicks, chimes, combat, arpeggios, and fanfare. |
 | [`src/client/input.js`](file:///c:/Users/James/Downloads/Quest/src/client/input.js) | Dual input manager abstracting keyboard navigation (WASD/Arrows) and virtual touch D-Pad/buttons. |
@@ -37,6 +38,7 @@
 | [`tests/unit/constants.test.js`](file:///c:/Users/James/Downloads/Quest/tests/unit/constants.test.js) | Unit test validating centralized constants against design system and curriculum specifications. |
 | [`tests/unit/game-data.test.js`](file:///c:/Users/James/Downloads/Quest/tests/unit/game-data.test.js) | Unit test validating pseudonymous handle generation, starter quests, and default profile. |
 | [`tests/unit/questions.test.js`](file:///c:/Users/James/Downloads/Quest/tests/unit/questions.test.js) | Unit test validating synthetic question bank schema, answer key secrecy, and encounter flow. |
+| [`tests/unit/question-schema.test.js`](file:///c:/Users/James/Downloads/Quest/tests/unit/question-schema.test.js) | Unit test validating question schema, rights gate, duplicate prompt detection, and import pipeline. |
 | [`tests/unit/encounter.test.js`](file:///c:/Users/James/Downloads/Quest/tests/unit/encounter.test.js) | Unit test validating combat state transitions, answer evaluation, boss flow, and retry path. |
 | [`tests/unit/input.test.js`](file:///c:/Users/James/Downloads/Quest/tests/unit/input.test.js) | Unit test validating keyboard and touch state transitions, buffers, and mappings. |
 | [`tests/unit/audio.test.js`](file:///c:/Users/James/Downloads/Quest/tests/unit/audio.test.js) | Unit test validating sound engine mute toggle and safe headless degradation. |

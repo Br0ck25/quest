@@ -1,10 +1,13 @@
-// src/server/worker.js — Cloudflare Worker Edge Handler
-// Serves responsive HTML shell, PWA manifest, service worker, and educational API endpoints.
-
 import { PALETTE, SUBJECTS, VIEWPORT } from '../data/constants.js';
 import { STARTER_QUESTS } from '../data/game-data.js';
 import { SYNTHETIC_QUESTIONS, DUNGEON_ENCOUNTERS, sanitizeQuestionForClient } from '../data/questions.js';
+import { validateQuestion, detectDuplicates, importQuestions } from '../data/question-schema.js';
 import { GAME_CSS } from '../client/styles.js';
+
+// In-memory catalog and idempotency store for Cloudflare edge worker
+const QUESTION_CATALOG = [...SYNTHETIC_QUESTIONS];
+const IDEMPOTENCY_STORE = new Map();
+
 
 export function createManifest() {
   const svgIcon192 = `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192"><rect width="192" height="192" rx="36" fill="${PALETTE.BG_DARK}"/><polygon points="96 28 156 64 156 128 96 164 36 128 36 64" fill="${PALETTE.SURFACE}" stroke="${PALETTE.BORDER_FOCUS}" stroke-width="8"/><circle cx="96" cy="96" r="32" fill="${PALETTE.MATH}"/><polygon points="96 74 114 108 78 108" fill="${PALETTE.GOLD}"/></svg>`;
@@ -142,20 +145,130 @@ export default {
       'Referrer-Policy': 'strict-origin-when-cross-origin',
     };
 
-    // Health check endpoint
+    // Health check endpoint (Phase 3)
     if (url.pathname === '/api/health') {
       return new Response(JSON.stringify({
         status: 'ok',
         game: 'QUEST: Kentucky',
         gradeBand: '6-8',
-        phase: 2,
-        mode: 'single-player-vertical-slice',
+        phase: 3,
+        mode: 'question-schema-and-rights-gate',
       }), {
         headers: {
           'Content-Type': 'application/json',
           ...securityHeaders,
         },
       });
+    }
+
+    // Public Question Delivery endpoint (Sanitized, Rights-Gated)
+    if (url.pathname === '/api/questions' && request.method === 'GET') {
+      const subjectFilter = url.searchParams.get('subject');
+      const gradeBandFilter = url.searchParams.get('gradeBand');
+
+      const approvedQuestions = QUESTION_CATALOG.filter((q) => {
+        if (!q.active || q.rightsStatus !== 'approved') return false;
+        if (subjectFilter && q.subject !== subjectFilter) return false;
+        if (gradeBandFilter && q.gradeBand !== gradeBandFilter) return false;
+        return true;
+      });
+
+      return new Response(JSON.stringify({
+        count: approvedQuestions.length,
+        questions: approvedQuestions.map(sanitizeQuestionForClient),
+      }), {
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'public, max-age=600',
+          ...securityHeaders,
+        },
+      });
+    }
+
+    // Staging Question Validation Endpoint (Pre-import Review Aid)
+    if (url.pathname === '/api/questions/validate' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const items = Array.isArray(body?.questions)
+          ? body.questions
+          : body?.question
+            ? [body.question]
+            : null;
+
+        if (!items) {
+          return new Response(JSON.stringify({ error: 'Payload must include question object or questions array' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json', ...securityHeaders },
+          });
+        }
+
+        const results = items.map((item) => {
+          const val = validateQuestion(item);
+          const dup = detectDuplicates(item, QUESTION_CATALOG);
+          return {
+            id: item?.id || 'unknown',
+            valid: val.valid,
+            errors: val.errors,
+            rightsStatus: val.rightsStatus,
+            duplicateWarnings: dup.warnings,
+          };
+        });
+
+        const allValid = results.every((r) => r.valid);
+        return new Response(JSON.stringify({
+          valid: allValid,
+          results,
+        }), {
+          headers: { 'Content-Type': 'application/json', ...securityHeaders },
+        });
+      } catch {
+        return new Response(JSON.stringify({ error: 'Invalid JSON payload' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', ...securityHeaders },
+        });
+      }
+    }
+
+    // Authorized Content Reviewer Import Endpoint (Rights Gate Enforcement)
+    if (url.pathname === '/api/questions/import' && request.method === 'POST') {
+      const role = request.headers.get('x-reviewer-role');
+      if (!role || (role !== 'reviewer' && role !== 'content_admin')) {
+        return new Response(JSON.stringify({ error: 'Unauthorized: Content reviewer role required' }), {
+          status: 403,
+          headers: { 'Content-Type': 'application/json', ...securityHeaders },
+        });
+      }
+
+      try {
+        const body = await request.json();
+        if (!body || !Array.isArray(body.questions)) {
+          return new Response(JSON.stringify({ error: 'Payload must contain a questions array' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json', ...securityHeaders },
+          });
+        }
+
+        const result = importQuestions(body.questions, QUESTION_CATALOG);
+        if (result.imported.length > 0) {
+          QUESTION_CATALOG.push(...result.imported);
+        }
+
+        return new Response(JSON.stringify({
+          success: result.success,
+          importedCount: result.imported.length,
+          rejectedCount: result.rejected.length,
+          imported: result.imported.map(sanitizeQuestionForClient),
+          rejected: result.rejected,
+          warnings: result.warnings,
+        }), {
+          headers: { 'Content-Type': 'application/json', ...securityHeaders },
+        });
+      } catch {
+        return new Response(JSON.stringify({ error: 'Invalid JSON payload' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', ...securityHeaders },
+        });
+      }
     }
 
     // KAAC Subject Realms metadata endpoint
@@ -186,8 +299,8 @@ export default {
 
     // Single-player dungeon encounters (sanitized without answer keys)
     if (url.pathname === '/api/encounters') {
-      const questionMap = new Map(SYNTHETIC_QUESTIONS.map(q => [q.id, q]));
-      const sanitizedEncounters = DUNGEON_ENCOUNTERS.map(enc => {
+      const questionMap = new Map(QUESTION_CATALOG.map((q) => [q.id, q]));
+      const sanitizedEncounters = DUNGEON_ENCOUNTERS.map((enc) => {
         let question = null;
         if (enc.questionId) {
           question = sanitizeQuestionForClient(questionMap.get(enc.questionId));
@@ -210,13 +323,19 @@ export default {
       });
     }
 
-    // Server-Authoritative Answer Validation endpoint
+    // Server-Authoritative Answer Validation endpoint with Rights Gate & Idempotency
     if (url.pathname === '/api/answers' && request.method === 'POST') {
       try {
         const body = await request.json();
-        const { questionId, selectedChoiceId } = body || {};
+        const { questionId, selectedChoiceId, idempotencyKey } = body || {};
 
-        const question = SYNTHETIC_QUESTIONS.find(q => q.id === questionId);
+        if (idempotencyKey && IDEMPOTENCY_STORE.has(idempotencyKey)) {
+          return new Response(JSON.stringify(IDEMPOTENCY_STORE.get(idempotencyKey)), {
+            headers: { 'Content-Type': 'application/json', ...securityHeaders },
+          });
+        }
+
+        const question = QUESTION_CATALOG.find((q) => q.id === questionId);
         if (!question) {
           return new Response(JSON.stringify({ error: 'Question not found' }), {
             status: 404,
@@ -224,12 +343,35 @@ export default {
           });
         }
 
+        // Rights gate check: item must be active and approved to be answerable
+        if (!question.active || question.rightsStatus !== 'approved') {
+          return new Response(JSON.stringify({ error: 'Question is not active or rights status is unapproved' }), {
+            status: 403,
+            headers: { 'Content-Type': 'application/json', ...securityHeaders },
+          });
+        }
+
+        const validChoice = Array.isArray(question.choices) && question.choices.some((c) => c.id === selectedChoiceId);
+        if (!validChoice) {
+          return new Response(JSON.stringify({ error: 'Invalid choice ID' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json', ...securityHeaders },
+          });
+        }
+
         const isCorrect = selectedChoiceId === question.answerKey;
-        return new Response(JSON.stringify({
+        const verdict = {
           accepted: true,
           correct: isCorrect,
           explanation: question.explanation,
-        }), {
+          conceptReviewScheduled: true,
+        };
+
+        if (idempotencyKey) {
+          IDEMPOTENCY_STORE.set(idempotencyKey, verdict);
+        }
+
+        return new Response(JSON.stringify(verdict), {
           headers: { 'Content-Type': 'application/json', ...securityHeaders },
         });
       } catch {

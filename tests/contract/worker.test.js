@@ -14,8 +14,8 @@ test('Worker health route returns ok and phase status', async () => {
   assert.equal(data.status, 'ok');
   assert.equal(data.game, 'QUEST: Kentucky');
   assert.equal(data.gradeBand, '6-8');
-  assert.equal(data.phase, 2);
-  assert.equal(data.mode, 'single-player-vertical-slice');
+  assert.equal(data.phase, 3);
+  assert.equal(data.mode, 'question-schema-and-rights-gate');
 });
 
 test('Worker root returns semantic HTML with responsive canvas and UI root', async () => {
@@ -145,3 +145,135 @@ test('Worker issues pseudonymous guest session tokens', async () => {
   assert.equal(data.gradeBand, '6-8');
   assert.equal(data.authenticated, false);
 });
+
+test('Worker delivers sanitized rights-approved public questions (/api/questions)', async () => {
+  const req = new Request('http://localhost/api/questions?subject=science');
+  const res = await worker.fetch(req, {}, {});
+  assert.equal(res.status, 200);
+
+  const data = await res.json();
+  assert.ok(data.count > 0);
+  assert.equal(data.questions.length, data.count);
+
+  for (const q of data.questions) {
+    assert.equal(q.subject, 'science');
+    assert.equal(q.active, true);
+    assert.equal(q.rightsStatus, 'approved');
+    assert.strictEqual('answerKey' in q, false, 'Public question payload MUST NOT leak answerKey');
+  }
+});
+
+test('Worker validates staging questions and detects duplicates (/api/questions/validate)', async () => {
+  const validCandidate = {
+    id: 'staging_sci_099',
+    subject: 'science',
+    conceptIds: ['science.earth'],
+    gradeBand: '6-8',
+    prompt: 'What sedimentary rock is most commonly dissolved to form karst sinkholes?',
+    choices: [
+      { id: 'a', text: 'Limestone' },
+      { id: 'b', text: 'Granite' },
+      { id: 'c', text: 'Basalt' },
+      { id: 'd', text: 'Shale' },
+    ],
+    answerKey: 'a',
+    explanation: 'Limestone dissolves in acidic water forming caves and sinkholes.',
+    difficulty: 2,
+    source: { type: 'original', author: 'KY Geologist', rightsStatus: 'approved' },
+    rightsStatus: 'approved',
+    active: true,
+  };
+
+  const req = new Request('http://localhost/api/questions/validate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question: validCandidate }),
+  });
+  const res = await worker.fetch(req, {}, {});
+  assert.equal(res.status, 200);
+
+  const data = await res.json();
+  assert.equal(data.valid, true);
+  assert.equal(data.results[0].id, 'staging_sci_099');
+});
+
+test('Worker restricts question imports to authorized reviewer roles and enforces rights gate (/api/questions/import)', async () => {
+  const testQuestion = {
+    id: 'import_math_001',
+    subject: 'math',
+    conceptIds: ['math.algebra'],
+    gradeBand: '6-8',
+    prompt: 'What is the value of 2x + 5 when x = 4?',
+    choices: [
+      { id: 'a', text: '13' },
+      { id: 'b', text: '14' },
+      { id: 'c', text: '15' },
+      { id: 'd', text: '16' },
+    ],
+    answerKey: 'a',
+    explanation: '2(4) + 5 = 8 + 5 = 13.',
+    difficulty: 1,
+    source: { type: 'original', author: 'Math Coach', rightsStatus: 'approved' },
+    rightsStatus: 'approved',
+    active: true,
+  };
+
+  // 1. Unauthorized request without reviewer header should return 403 Forbidden
+  const reqUnauth = new Request('http://localhost/api/questions/import', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ questions: [testQuestion] }),
+  });
+  const resUnauth = await worker.fetch(reqUnauth, {}, {});
+  assert.equal(resUnauth.status, 403);
+
+  // 2. Authorized request with X-Reviewer-Role: content_admin
+  const reqAuth = new Request('http://localhost/api/questions/import', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Reviewer-Role': 'content_admin',
+    },
+    body: JSON.stringify({ questions: [testQuestion] }),
+  });
+  const resAuth = await worker.fetch(reqAuth, {}, {});
+  assert.equal(resAuth.status, 200);
+
+  const dataAuth = await resAuth.json();
+  assert.equal(dataAuth.success, true);
+  assert.equal(dataAuth.importedCount, 1);
+});
+
+test('Worker enforces idempotency on answer submissions (/api/answers)', async () => {
+  const idempotencyKey = 'req_test_idem_001';
+  const payload = {
+    sessionId: 'test_session_guest_1',
+    questionId: 'syn_sci_001',
+    selectedChoiceId: 'b',
+    idempotencyKey,
+  };
+
+  // First submission
+  const req1 = new Request('http://localhost/api/answers', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const res1 = await worker.fetch(req1, {}, {});
+  assert.equal(res1.status, 200);
+  const data1 = await res1.json();
+  assert.equal(data1.accepted, true);
+  assert.equal(data1.correct, true);
+
+  // Second submission with exact same idempotencyKey should return cached response
+  const req2 = new Request('http://localhost/api/answers', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const res2 = await worker.fetch(req2, {}, {});
+  assert.equal(res2.status, 200);
+  const data2 = await res2.json();
+  assert.deepEqual(data2, data1);
+});
+

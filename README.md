@@ -2,8 +2,8 @@
 
 > **Responsive Browser RPG for Middle Grades (Grades 6–8) preparing for KAAC Governor's Cup Academic Competition.**
 
-[![Tests](https://img.shields.io/badge/tests-44%20passing-brightgreen)](#testing)
-[![Phase](https://img.shields.io/badge/phase-2%20single--player%20slice-blue)](#phase-2-vertical-slice)
+[![Tests](https://img.shields.io/badge/tests-69%20passing-brightgreen)](#testing)
+[![Phase](https://img.shields.io/badge/phase-3%20question%20schema%20%26%20rights%20gate-blue)](#phase-3-question-schema-and-rights-gate)
 [![Cloudflare Workers](https://img.shields.io/badge/deployment-Cloudflare%20Workers-orange)](#deployment)
 
 ---
@@ -70,10 +70,46 @@ Visit `http://localhost:8787` in any desktop browser, mobile phone, tablet, or s
 
 ---
 
-## 4. Architecture Principles
+## 4. Phase 3: Question Schema, Rights Gate & Validation Workflow
+
+Phase 3 introduces rigorous provenance validation, rights enforcement, duplicate detection, and secure server-authoritative answer delivery:
+
+### Strict 14-Field Question Schema
+Every question conforms to the Governor's Cup Middle Grades specification:
+- `id`: Stable alphanumeric identifier (e.g. `syn_sci_001`).
+- `subject`: One of the 5 Governor's Cup subjects (`math`, `science`, `social_studies`, `language_arts`, `arts_humanities`).
+- `conceptIds`: Array of specific curriculum taxonomy nodes.
+- `gradeBand`: Target competition division (`6-8`, `4-5`, `6`).
+- `prompt`: Question prompt text (minimum 10 characters).
+- `choices`: Array of at least 2 (standard 4) choices with unique IDs and non-empty text.
+- `answerKey`: Must strictly match a valid choice ID.
+- `explanation`: Educational feedback and rationale.
+- `difficulty`: Integer rating (1–5).
+- `source` / `provenance`: Origin metadata (`type`, `author`/`reference`, `rightsStatus`).
+- `rightsStatus`: `'approved'` | `'pending'` | `'rejected'` | `'in_review'`.
+- `reviewStatus`: `'draft'` | `'in_review'` | `'verified'` | `'approved'` | `'rejected'` | `'retired'`.
+- `version`: Positive integer version counter.
+- `active`: Boolean active serving status.
+
+### Non-Negotiable Rights Gate
+Questions cannot be active or delivered to players unless `rightsStatus === 'approved'`. Revoking rights or retiring an item automatically deactivates the question and excludes it from public delivery and answer scoring.
+
+### Duplicate Detection Review Aid
+To aid human content reviewers, `detectDuplicates` normalizes prompts, computes token-level Jaccard similarity, and flags both exact duplicates and high-similarity items without making unilateral legal judgments.
+
+### Secure Answer Delivery Endpoints
+- `GET /api/questions`: Delivers public questions with **Answer Key Secrecy** enforced (`sanitizeQuestionForClient` strips `answerKey`). Only active, rights-approved items are served.
+- `POST /api/questions/validate`: Pre-import validation and duplicate analysis endpoint.
+- `POST /api/questions/import`: Authorized content reviewer import endpoint (enforces `X-Reviewer-Role: reviewer` or `content_admin`).
+- `POST /api/answers`: Authoritative evaluation requiring valid session, active/approved question status, valid choice ID, and idempotency protection (`idempotencyKey`).
+
+---
+
+## 5. Architecture Principles
 
 - **Zero External Raster Images**: 100% procedural Canvas 2D sprites & inline SVG icons.
 - **Zero External Audio Files**: Synthesized procedural Web Audio API sound effects.
 - **Strict File Budget**: Every source file and compiled artifact is ≤ 2,000 lines.
 - **Edge Deployment Target**: Cloudflare Worker script (`worker.js`) compiled from `src/`.
 - **COPPA/FERPA Compliance**: Child-safe pseudonymous adventurer handles with zero PII and no open text/voice chat.
+

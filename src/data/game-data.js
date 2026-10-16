@@ -5,7 +5,7 @@ import { SUBJECTS, PALETTE } from './constants.js';
 
 const HANDLE_PREFIXES = [
   'Bluegrass', 'Cumberland', 'Berea', 'Derby', 'Cardinal',
-  'RedRiver', 'Limestone', 'Mammoth', 'Goldenrod', 'Paducah'
+  'Redriver', 'Limestone', 'Mammoth', 'Goldenrod', 'Paducah'
 ];
 
 const HANDLE_ROLES = [

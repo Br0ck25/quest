@@ -44,6 +44,8 @@ describe('Synthetic Question Bank & Encounter Integrity', () => {
       // Source and rights metadata
       assert.ok(q.source && q.source.type && q.source.license, `Question ${q.id} missing source or license`);
       assert.strictEqual(q.reviewStatus, 'approved', `Question ${q.id} must be approved`);
+      assert.strictEqual(q.rightsStatus, 'approved', `Question ${q.id} must have approved rights`);
+      assert.strictEqual(q.active, true, `Question ${q.id} must be active`);
     }
   });
 

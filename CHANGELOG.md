@@ -114,5 +114,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - **Testing & Documentation (`README.md`, `tests/unit/questions.test.js`, `tests/unit/encounter.test.js`)**:
     - Comprehensive manual controls documentation and Phase 2 slice walkthrough in `README.md`.
     - Unit tests for questions, combat state machine, zone transitions, audio FX, and sprites.
-    - Expanded test suite to 44 passing tests (0 failures).
     - Single-file Cloudflare Worker bundle artifact (`worker.js`) at 1,703 lines (under 2,000 line budget).
+- **Phase 3: Question Schema, Rights Gate & Validation Workflow**:
+  - **Question Schema & Rights Gate (`src/data/question-schema.js`)**:
+    - Built comprehensive 14-field question validation engine (`validateQuestion`) enforcing stable IDs, KAAC subject taxonomy, concept mappings, target grade band (6–8), 4 distinct choices, valid answerKey matching choice ID, explanatory feedback, difficulty scale, and provenance metadata.
+    - Implemented strict Rights Gate rule: any item marked `active: true` MUST have `rightsStatus === 'approved'`; unapproved or pending items are rejected from active rotation.
+    - Added status transition helper `updateQuestionRights`: revoking rights or retiring an item automatically sets `active: false` and increments item version.
+  - **Duplicate Detection Review Aid (`src/data/question-schema.js`)**:
+    - Built text normalizer (`normalizeText`) and token-level Jaccard similarity calculator (`computeSimilarity`).
+    - Implemented `detectDuplicates`: flags exact duplicate IDs (fatal import error), identical prompts (100% match warning), and semantic near-duplicates (threshold warning) as a review aid without unilateral legal judgment.
+  - **Staging & Batch Import Pipeline (`src/data/question-schema.js`)**:
+    - Created `importQuestions` to ingest candidate batches, enforce uniqueness within batch, validate against current catalog, apply Rights Gate, and report clean partitions of `imported`, `rejected`, and `warnings`.
+  - **Synthetic Question Bank Rights Alignment (`src/data/questions.js`)**:
+    - Updated all synthetic questions with `rightsStatus: 'approved'` and `active: true`, with verified provenance.
+  - **Secure Edge Worker API Endpoints (`src/server/worker.js` & `scripts/build.js`)**:
+    - `/api/health` updated to report Phase 3 and `question-schema-and-rights-gate` mode.
+    - `/api/questions` GET endpoint serving only active, rights-approved items sanitized via `sanitizeQuestionForClient` (Answer Key Secrecy strictly enforced; no `answerKey` in public payloads). Supports subject and grade band filtering.
+    - `/api/questions/validate` POST pre-import staging endpoint validating schemas and returning duplicate detection warnings.
+    - `/api/questions/import` POST authorized content reviewer endpoint requiring `X-Reviewer-Role` (`reviewer` or `content_admin`).
+    - `/api/answers` POST endpoint enhanced with session verification, rights gate checks, valid choice ID validation, and idempotency key caching.
+  - **Artifact Compression & Testing Integrity (`scripts/build.js`, `tests/unit/question-schema.test.js`, `tests/contract/worker.test.js`)**:
+    - Added CSS whitespace minification in bundler to preserve line budget: `worker.js` compiled artifact reduced from 1,703 lines to 1,367 lines (over 630 lines of headroom below 2,000 line ceiling).
+    - Unit test suite for question schema, rights gate, duplicate detection, and import workflow (19 tests).
+    - Contract test suite expanded to test all Phase 3 endpoints and idempotency.
+    - Total test suite expanded from 44 to 69 passing tests (0 failures).
+
