@@ -1,36 +1,14 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "quest-kentucky",
+  "name": "quest",
   "main": "worker.js",
   "compatibility_date": "2024-09-23",
   "compatibility_flags": ["nodejs_compat"],
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "quest_ky_dev_d1",
-      "database_id": "local-dev-d1-placeholder"
+      "database_name": "quest-db",
+      "database_id": "9a024f0c-d7fe-4ca5-9eec-65a41fdbf38c"
     }
-  ],
-  "env": {
-    "staging": {
-      "name": "quest-kentucky-staging",
-      "d1_databases": [
-        {
-          "binding": "DB",
-          "database_name": "quest_ky_staging_d1",
-          "database_id": "placeholder-staging-d1-id"
-        }
-      ]
-    },
-    "production": {
-      "name": "quest-kentucky-production",
-      "d1_databases": [
-        {
-          "binding": "DB",
-          "database_name": "quest_ky_production_d1",
-          "database_id": "placeholder-production-d1-id"
-        }
-      ]
-    }
-  }
+  ]
 }
