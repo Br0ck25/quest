@@ -2,9 +2,10 @@
 
 > **Responsive Browser RPG for Middle Grades (Grades 6–8) preparing for KAAC Governor's Cup Academic Competition.**
 
-[![Tests](https://img.shields.io/badge/tests-143%20passing-brightgreen)](#testing)
-[![Phase](https://img.shields.io/badge/phase-9%20admin%20content%20review-blue)](#phase-9-admin-content-review-workflow--verified-question-sets)
+[![Tests](https://img.shields.io/badge/tests-156%20passing-brightgreen)](#testing)
+[![Phase](https://img.shields.io/badge/phase-10%20release%20candidate-blue)](#phase-10-security-privacy-review-child-safety-audit--release-candidate-baseline)
 [![Cloudflare Workers](https://img.shields.io/badge/deployment-Cloudflare%20Workers-orange)](#deployment)
+
 
 ---
 
@@ -295,7 +296,36 @@ Phase 9 establishes an authoritative, role-gated content review and lifecycle go
 
 ---
 
-## 11. Architecture Principles
+## 11. Phase 10: Security, Privacy Review, Child Safety Audit & Release Candidate Baseline
+
+Phase 10 audits the entire codebase for COPPA/FERPA compliance, anti-tampering, session authorization, and establishes the production release candidate baseline:
+
+### Child Privacy & Zero PII Architecture (COPPA / FERPA Compliance)
+- **Zero Personal Identifiable Information**: No student real names, email addresses, phone numbers, school IDs, or birthdays are ever requested, recorded, or stored in Cloudflare D1.
+- **Child-Safe Handles**: User handles follow procedural pseudonymous templates (`[Prefix][Role][2Digits]`, e.g., `BluegrassExplorer42`).
+- **No Open Text or Voice Communication**: Public/private text chat and voice communication are completely prohibited. Student interaction in co-op and duels is restricted exclusively to 6 approved preset emotes (`ready`, `cheer`, `thinking`, `focus`, `high_five`, `gg`).
+- **Right to be Forgotten (`POST /api/user/delete`)**: Full data deletion endpoint allowing students, parents, or administrators to permanently purge all user records across all 7 relational tables (`user_question_attempts`, `user_concept_mastery`, `wallet_ledger`, `user_inventory`, `user_progression`, `user_quests`, `users`).
+
+### Anti-Tampering & Edge Security Invariants
+- **Session IDOR Protection**: User state modifications (`/api/inventory/buy`, `/api/inventory/equip`, `/api/quests/claim`, `/api/answers`, `/api/user/delete`) strictly verify that request payload user identities match the session credentials (`x-guest-id` / `x-user-id`).
+- **Anti-DoS Payload Limiting**: Edge worker rejects oversized request bodies (> 64KB) with `HTTP 413 Payload Too Large` to prevent edge memory exhaustion.
+- **Strict Security Headers & Device Permissions Guard**:
+  - `Content-Security-Policy`: `default-src 'self' 'unsafe-inline' data:; connect-src 'self' ws: wss:;`
+  - `Permissions-Policy`: `camera=(), microphone=(), geolocation=()` (strictly disallowing camera, microphone, and geolocation access).
+  - `X-Content-Type-Options`: `nosniff`
+  - `X-Frame-Options`: `DENY`
+  - `Referrer-Policy`: `strict-origin-when-cross-origin`
+- **Answer Key Secrecy**: Verification that no student-facing endpoint exposes `answerKey` prior to authorized post-submission evaluation.
+- **Anti-Farming Economy Stability**: Diminishing returns clamp repeated attempts on the same question within 24 hours to 1 XP and 0 coins.
+
+### Phase 10 API Endpoints
+- `GET /api/health`: Delivers release candidate health snapshot (`phase: 10`, `mode: 'release-candidate'`, `securityAudit: 'passed'`).
+- `GET /api/security/audit`: Delivers security, privacy, and child safety compliance metadata.
+- `POST /api/user/delete`: Permanently purges user account and all relational audit records.
+
+---
+
+## 12. Architecture Principles
 
 - **Zero External Raster Images**: 100% procedural Canvas 2D sprites & inline SVG icons.
 - **Zero External Audio Files**: Synthesized procedural Web Audio API sound effects.

@@ -636,4 +636,47 @@ export class DatabaseAdapter {
       },
     };
   }
+
+  /**
+   * Permanently purges all user records across all tables (COPPA / FERPA compliance).
+   * @param {string} userId
+   * @returns {Promise<{ success: boolean, userId: string, purgedCount: number }>}
+   */
+  async deleteUserData(userId) {
+    if (!userId) return { success: false, error: 'userId is required' };
+
+    if (this.d1) {
+      await this.d1.prepare('DELETE FROM user_question_attempts WHERE user_id = ?').bind(userId).run();
+      await this.d1.prepare('DELETE FROM user_concept_mastery WHERE user_id = ?').bind(userId).run();
+      await this.d1.prepare('DELETE FROM wallet_ledger WHERE user_id = ?').bind(userId).run();
+      await this.d1.prepare('DELETE FROM user_inventory WHERE user_id = ?').bind(userId).run();
+      await this.d1.prepare('DELETE FROM user_progression WHERE user_id = ?').bind(userId).run();
+      await this.d1.prepare('DELETE FROM user_quests WHERE user_id = ?').bind(userId).run();
+      await this.d1.prepare('DELETE FROM users WHERE id = ?').bind(userId).run();
+      return { success: true, userId, purged: true };
+    }
+
+    let purgedCount = 0;
+    if (this.memory.users.delete(userId)) purgedCount++;
+    this.memory.progression.delete(userId);
+
+    for (const [k, v] of this.memory.attempts) {
+      if (v.userId === userId) { this.memory.attempts.delete(k); purgedCount++; }
+    }
+    for (const [k] of this.memory.mastery) {
+      if (k.startsWith(`${userId}:`)) { this.memory.mastery.delete(k); purgedCount++; }
+    }
+    for (const [k, v] of this.memory.walletLedger) {
+      if (v.userId === userId) { this.memory.walletLedger.delete(k); purgedCount++; }
+    }
+    for (const [k] of this.memory.userInventory) {
+      if (k.startsWith(`${userId}:`)) { this.memory.userInventory.delete(k); purgedCount++; }
+    }
+    for (const [k] of this.memory.userQuests) {
+      if (k.startsWith(`${userId}:`)) { this.memory.userQuests.delete(k); purgedCount++; }
+    }
+
+    return { success: true, userId, purged: true, purgedCount };
+  }
 }
+

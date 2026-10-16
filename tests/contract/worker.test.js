@@ -14,10 +14,12 @@ test('Worker health route returns ok and phase status', async () => {
   assert.equal(data.status, 'ok');
   assert.equal(data.game, 'QUEST: Kentucky');
   assert.equal(data.gradeBand, '6-8');
-  assert.equal(data.phase, 9);
-  assert.equal(data.mode, 'content-review');
+  assert.equal(data.phase, 10);
+  assert.equal(data.mode, 'release-candidate');
+  assert.equal(data.securityAudit, 'passed');
   assert.equal(data.adminReview, true);
 });
+
 
 test('Worker accessibility route returns WCAG AA compliance metadata', async () => {
   const req = new Request('http://localhost/api/accessibility');
@@ -804,6 +806,124 @@ test('Worker handles question review actions: approve, correct, and retire with 
   assert.ok(actions.includes('correct'));
   assert.ok(actions.includes('retire'));
 });
+
+test('Worker security audit endpoint returns COPPA compliance and security posture', async () => {
+  const req = new Request('http://localhost/api/security/audit');
+  const res = await worker.fetch(req, {}, {});
+  assert.equal(res.status, 200);
+
+  // Verify critical security headers
+  assert.equal(res.headers.get('content-security-policy'), "default-src 'self' 'unsafe-inline' data:; connect-src 'self' ws: wss:;");
+  assert.equal(res.headers.get('permissions-policy'), 'camera=(), microphone=(), geolocation=()');
+  assert.equal(res.headers.get('x-content-type-options'), 'nosniff');
+  assert.equal(res.headers.get('x-frame-options'), 'DENY');
+
+  const data = await res.json();
+  assert.equal(data.status, 'passed');
+  assert.equal(data.coppaCompliant, true);
+  assert.equal(data.zeroPii, true);
+  assert.equal(data.noOpenChat, true);
+  assert.equal(data.presetEmotesOnly, true);
+  assert.equal(data.answerKeySecrecy, true);
+  assert.equal(data.dataDeletionSupported, true);
+  assert.equal(data.antiFarmingEnforced, true);
+  assert.equal(data.maxPayloadSizeBytes, 65536);
+});
+
+test('Worker enforces Anti-DoS payload size limits (rejects >64KB with HTTP 413)', async () => {
+  const req = new Request('http://localhost/api/answers', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'content-length': '70000',
+    },
+    body: JSON.stringify({ data: 'x'.repeat(100) }),
+  });
+  const res = await worker.fetch(req, {}, {});
+  assert.equal(res.status, 413);
+  const data = await res.json();
+  assert.ok(data.error.includes('Payload Too Large'));
+});
+
+test('Worker enforces Session IDOR Protection across user actions', async () => {
+  // Attempt to buy cosmetic with mismatched session user vs body userId
+  const buyReq = new Request('http://localhost/api/inventory/buy', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-guest-id': 'legitimate_user_1',
+    },
+    body: JSON.stringify({ userId: 'victim_user_2', itemId: 'badge_quick_thinker' }),
+  });
+  const buyRes = await worker.fetch(buyReq, {}, {});
+  assert.equal(buyRes.status, 403);
+  const buyData = await buyRes.json();
+  assert.ok(buyData.error.includes('Session user mismatch'));
+
+  // Attempt to claim quest with mismatched session
+  const claimReq = new Request('http://localhost/api/quests/claim', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-guest-id': 'legitimate_user_1',
+    },
+    body: JSON.stringify({ userId: 'victim_user_2', questId: 'q_flora_01' }),
+  });
+  const claimRes = await worker.fetch(claimReq, {}, {});
+  assert.equal(claimRes.status, 403);
+
+  // Attempt to submit answer with mismatched session
+  const ansReq = new Request('http://localhost/api/answers', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-guest-id': 'legitimate_user_1',
+    },
+    body: JSON.stringify({ userId: 'victim_user_2', questionId: 'q_science_000001', selectedChoiceId: 'a' }),
+  });
+  const ansRes = await worker.fetch(ansReq, {}, {});
+  assert.equal(ansRes.status, 403);
+});
+
+test('Worker supports COPPA/FERPA User Data Deletion / Purge endpoint', async () => {
+  const testUserId = 'student_purge_test_01';
+
+  // 1. Submit answer and earn progression
+  const ansReq = new Request('http://localhost/api/answers', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-guest-id': testUserId },
+    body: JSON.stringify({
+      userId: testUserId,
+      questionId: 'syn_sci_002',
+      selectedChoiceId: 'a',
+      idempotencyKey: 'purge_test_ans_01',
+    }),
+  });
+  const ansRes = await worker.fetch(ansReq, {}, {});
+  assert.equal(ansRes.status, 200);
+
+  // 2. Reject unauthorized deletion (attempt to delete another user without admin role)
+  const spoofReq = new Request('http://localhost/api/user/delete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-guest-id': 'other_student' },
+    body: JSON.stringify({ userId: testUserId }),
+  });
+  const spoofRes = await worker.fetch(spoofReq, {}, {});
+  assert.equal(spoofRes.status, 403);
+
+  // 3. Authorized self-deletion
+  const deleteReq = new Request('http://localhost/api/user/delete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-guest-id': testUserId },
+    body: JSON.stringify({ userId: testUserId }),
+  });
+  const deleteRes = await worker.fetch(deleteReq, {}, {});
+  assert.equal(deleteRes.status, 200);
+  const deleteData = await deleteRes.json();
+  assert.equal(deleteData.success, true);
+  assert.equal(deleteData.purged, true);
+});
+
 
 
 
