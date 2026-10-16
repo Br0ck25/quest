@@ -28,9 +28,16 @@ test('SoundEngine plays sounds without throwing even when AudioContext is absent
   assert.doesNotThrow(() => engine.playChime());
   assert.doesNotThrow(() => engine.playWalk());
   assert.doesNotThrow(() => engine.playAlert());
+  assert.doesNotThrow(() => engine.playEncounterStart());
+  assert.doesNotThrow(() => engine.playAttack());
+  assert.doesNotThrow(() => engine.playCorrect());
+  assert.doesNotThrow(() => engine.playWrong());
+  assert.doesNotThrow(() => engine.playFanfare());
 
   // Muted calls should exit immediately
   engine.toggleMute(true);
   assert.doesNotThrow(() => engine.playClick());
   assert.doesNotThrow(() => engine.playChime());
+  assert.doesNotThrow(() => engine.playEncounterStart());
+  assert.doesNotThrow(() => engine.playFanfare());
 });

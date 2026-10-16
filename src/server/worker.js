@@ -2,6 +2,8 @@
 // Serves responsive HTML shell, PWA manifest, service worker, and educational API endpoints.
 
 import { PALETTE, SUBJECTS, VIEWPORT } from '../data/constants.js';
+import { STARTER_QUESTS } from '../data/game-data.js';
+import { SYNTHETIC_QUESTIONS, DUNGEON_ENCOUNTERS, sanitizeQuestionForClient } from '../data/questions.js';
 import { GAME_CSS } from '../client/styles.js';
 
 export function createManifest() {
@@ -146,8 +148,8 @@ export default {
         status: 'ok',
         game: 'QUEST: Kentucky',
         gradeBand: '6-8',
-        phase: 1,
-        mode: 'guest-first',
+        phase: 2,
+        mode: 'single-player-vertical-slice',
       }), {
         headers: {
           'Content-Type': 'application/json',
@@ -169,9 +171,78 @@ export default {
       });
     }
 
+    // Starter Quests endpoint
+    if (url.pathname === '/api/quests') {
+      return new Response(JSON.stringify({
+        quests: STARTER_QUESTS,
+      }), {
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'public, max-age=3600',
+          ...securityHeaders,
+        },
+      });
+    }
+
+    // Single-player dungeon encounters (sanitized without answer keys)
+    if (url.pathname === '/api/encounters') {
+      const questionMap = new Map(SYNTHETIC_QUESTIONS.map(q => [q.id, q]));
+      const sanitizedEncounters = DUNGEON_ENCOUNTERS.map(enc => {
+        let question = null;
+        if (enc.questionId) {
+          question = sanitizeQuestionForClient(questionMap.get(enc.questionId));
+        }
+        return {
+          ...enc,
+          question,
+        };
+      });
+
+      return new Response(JSON.stringify({
+        dungeon: 'The Verdant Sanctuary',
+        encounters: sanitizedEncounters,
+      }), {
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'public, max-age=3600',
+          ...securityHeaders,
+        },
+      });
+    }
+
+    // Server-Authoritative Answer Validation endpoint
+    if (url.pathname === '/api/answers' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const { questionId, selectedChoiceId } = body || {};
+
+        const question = SYNTHETIC_QUESTIONS.find(q => q.id === questionId);
+        if (!question) {
+          return new Response(JSON.stringify({ error: 'Question not found' }), {
+            status: 404,
+            headers: { 'Content-Type': 'application/json', ...securityHeaders },
+          });
+        }
+
+        const isCorrect = selectedChoiceId === question.answerKey;
+        return new Response(JSON.stringify({
+          accepted: true,
+          correct: isCorrect,
+          explanation: question.explanation,
+        }), {
+          headers: { 'Content-Type': 'application/json', ...securityHeaders },
+        });
+      } catch {
+        return new Response(JSON.stringify({ error: 'Invalid JSON payload' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', ...securityHeaders },
+        });
+      }
+    }
+
     // Session endpoint (pseudonymous child-safe guest session)
     if (url.pathname === '/api/session') {
-      const guestId = crypto.randomUUID ? crypto.randomUUID() : 'guest_' + Math.random().toString(36).substring(2, 10);
+      const guestId = (crypto && crypto.randomUUID) ? crypto.randomUUID() : 'guest_' + Math.random().toString(36).substring(2, 10);
       return new Response(JSON.stringify({
         guestId,
         gradeBand: '6-8',

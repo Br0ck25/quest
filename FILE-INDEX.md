@@ -4,6 +4,7 @@
 
 | File Path | Description |
 | :--- | :--- |
+| [`README.md`](file:///c:/Users/James/Downloads/Quest/README.md) | Project overview, quick start commands, manual controls guide, and Phase 2 slice walkthrough. |
 | [`claude.md`](file:///c:/Users/James/Downloads/Quest/claude.md) | Core AI agent rules, hard constraints, engineering principles, and tech stack. |
 | [`AGENTS.md`](file:///c:/Users/James/Downloads/Quest/AGENTS.md) | Universal AI agent entry point linking to claude.md and core hard constraints. |
 | [`FILE-INDEX.md`](file:///c:/Users/James/Downloads/Quest/FILE-INDEX.md) | Single-line catalog of all project files for fast, low-token file lookups. |
@@ -23,21 +24,25 @@
 | [`scripts/dev-server.js`](file:///c:/Users/James/Downloads/Quest/scripts/dev-server.js) | Local preview HTTP server simulating the Cloudflare Worker fetch runtime. |
 | [`src/data/constants.js`](file:///c:/Users/James/Downloads/Quest/src/data/constants.js) | Centralized project constants (dimensions, palette tokens, subject mappings, intervals). |
 | [`src/data/game-data.js`](file:///c:/Users/James/Downloads/Quest/src/data/game-data.js) | Child-safe pseudonymous handle generator, starter quests, and starter inventory. |
-| [`src/client/sprites.js`](file:///c:/Users/James/Downloads/Quest/src/client/sprites.js) | Procedural 8x8 hero sprite matrices, offscreen tile atlas generator, and inline SVG icons. |
-| [`src/client/audio.js`](file:///c:/Users/James/Downloads/Quest/src/client/audio.js) | Procedural Web Audio FX synthesizer for clicks, chimes, movement ticks, and alerts. |
+| [`src/data/questions.js`](file:///c:/Users/James/Downloads/Quest/src/data/questions.js) | Synthetic KAAC Middle Grades question bank and 5-encounter dungeon definition. |
+| [`src/client/sprites.js`](file:///c:/Users/James/Downloads/Quest/src/client/sprites.js) | Procedural 8x8 hero/NPC/enemy sprite matrices, offscreen tile atlas, and SVG icons. |
+| [`src/client/audio.js`](file:///c:/Users/James/Downloads/Quest/src/client/audio.js) | Procedural Web Audio FX synthesizer for clicks, chimes, combat, arpeggios, and fanfare. |
 | [`src/client/input.js`](file:///c:/Users/James/Downloads/Quest/src/client/input.js) | Dual input manager abstracting keyboard navigation (WASD/Arrows) and virtual touch D-Pad/buttons. |
-| [`src/client/renderer.js`](file:///c:/Users/James/Downloads/Quest/src/client/renderer.js) | 2D Canvas engine with 320x240 retro resolution, procedural tilemap, camera, and KAAC shrines. |
-| [`src/client/ui.js`](file:///c:/Users/James/Downloads/Quest/src/client/ui.js) | Semantic accessible UI overlay (HUD, region map modal, quests, inventory, settings, touch D-Pad). |
-| [`src/client/styles.js`](file:///c:/Users/James/Downloads/Quest/src/client/styles.js) | Responsive stylesheet implementing approved color tokens, mobile layout, and WCAG AA contrast. |
-| [`src/client/app.js`](file:///c:/Users/James/Downloads/Quest/src/client/app.js) | Application orchestrator connecting renderer, input, audio, and UI with local guest persistence. |
+| [`src/client/encounter.js`](file:///c:/Users/James/Downloads/Quest/src/client/encounter.js) | Turn-based question combat state machine, answer validation, damage, and retry handler. |
+| [`src/client/renderer.js`](file:///c:/Users/James/Downloads/Quest/src/client/renderer.js) | 2D Canvas engine with multi-zone maps (Hub, Route, Dungeon), collision, and entities. |
+| [`src/client/ui.js`](file:///c:/Users/James/Downloads/Quest/src/client/ui.js) | Semantic accessible UI overlay (HUD, combat question modal, victory fanfare, settings). |
+| [`src/client/styles.js`](file:///c:/Users/James/Downloads/Quest/src/client/styles.js) | Responsive stylesheet implementing approved color tokens, mobile layout, and combat cards. |
+| [`src/client/app.js`](file:///c:/Users/James/Downloads/Quest/src/client/app.js) | Application orchestrator connecting world zones, combat encounters, audio, and quest rewards. |
 | [`src/server/worker.js`](file:///c:/Users/James/Downloads/Quest/src/server/worker.js) | Cloudflare Worker edge handler serving HTML shell, PWA manifest, service worker, and API. |
 | [`tests/unit/constants.test.js`](file:///c:/Users/James/Downloads/Quest/tests/unit/constants.test.js) | Unit test validating centralized constants against design system and curriculum specifications. |
 | [`tests/unit/game-data.test.js`](file:///c:/Users/James/Downloads/Quest/tests/unit/game-data.test.js) | Unit test validating pseudonymous handle generation, starter quests, and default profile. |
+| [`tests/unit/questions.test.js`](file:///c:/Users/James/Downloads/Quest/tests/unit/questions.test.js) | Unit test validating synthetic question bank schema, answer key secrecy, and encounter flow. |
+| [`tests/unit/encounter.test.js`](file:///c:/Users/James/Downloads/Quest/tests/unit/encounter.test.js) | Unit test validating combat state transitions, answer evaluation, boss flow, and retry path. |
 | [`tests/unit/input.test.js`](file:///c:/Users/James/Downloads/Quest/tests/unit/input.test.js) | Unit test validating keyboard and touch state transitions, buffers, and mappings. |
 | [`tests/unit/audio.test.js`](file:///c:/Users/James/Downloads/Quest/tests/unit/audio.test.js) | Unit test validating sound engine mute toggle and safe headless degradation. |
-| [`tests/unit/sprites.test.js`](file:///c:/Users/James/Downloads/Quest/tests/unit/sprites.test.js) | Unit test validating directional sprite matrices and inline SVG icon tokens. |
-| [`tests/unit/renderer.test.js`](file:///c:/Users/James/Downloads/Quest/tests/unit/renderer.test.js) | Unit test validating tilemap generation, collision bounds, and shrine interaction proximity. |
-| [`tests/contract/worker.test.js`](file:///c:/Users/James/Downloads/Quest/tests/contract/worker.test.js) | Contract test validating Worker edge routes (health, root HTML, manifest, sw.js, regions, session). |
+| [`tests/unit/sprites.test.js`](file:///c:/Users/James/Downloads/Quest/tests/unit/sprites.test.js) | Unit test validating directional sprite matrices, NPC/enemy sprites, and SVG icons. |
+| [`tests/unit/renderer.test.js`](file:///c:/Users/James/Downloads/Quest/tests/unit/renderer.test.js) | Unit test validating multi-zone generation, collision bounds, NPC/encounter proximity. |
+| [`tests/contract/worker.test.js`](file:///c:/Users/James/Downloads/Quest/tests/contract/worker.test.js) | Contract test validating Worker edge routes (health, root HTML, manifest, sw.js, questions, answers). |
 | [`worker.js`](file:///c:/Users/James/Downloads/Quest/worker.js) | **GENERATED BUILD ARTIFACT** (Do not edit directly; copy-paste target for Cloudflare). |
 | [`QUEST_Kentucky_Complete_Game_Plan_and_AI_Prompts.md`](file:///c:/Users/James/Downloads/Quest/QUEST_Kentucky_Complete_Game_Plan_and_AI_Prompts.md) | Master game design specification, 16 vertical slice implementation prompts, and roadmap. |
 | [`QUEST_Kentucky_Complete_Game_Plan_and_AI_Prompts.docx`](file:///c:/Users/James/Downloads/Quest/QUEST_Kentucky_Complete_Game_Plan_and_AI_Prompts.docx) | Word document version of the master game design specification. |

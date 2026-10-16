@@ -63,3 +63,49 @@ test('GameRenderer detects proximity interaction with subject shrines', () => {
   renderer.update(0.01, input);
   assert.equal(renderer.activeInteraction, null, 'Interaction should clear when far away');
 });
+
+test('GameRenderer detects NPC Berea Sage interaction in Hub', () => {
+  const renderer = new GameRenderer(null);
+  const input = new InputManager();
+
+  renderer.player.x = renderer.npc.col * renderer.tileSize;
+  renderer.player.y = renderer.npc.row * renderer.tileSize;
+
+  renderer.update(0.01, input);
+  assert.ok(renderer.activeInteraction);
+  assert.equal(renderer.activeInteraction.type, 'npc');
+  assert.equal(renderer.activeInteraction.id, 'npc_sage');
+});
+
+test('GameRenderer transitions between Hub, Route, and Dungeon zones', () => {
+  const renderer = new GameRenderer(null);
+  assert.equal(renderer.currentZone, 'hub');
+
+  // Transition to Route
+  renderer.changeZone('route', 152, 220);
+  assert.equal(renderer.currentZone, 'route');
+  assert.equal(renderer.player.x, 152);
+  assert.equal(renderer.player.y, 220);
+
+  // Transition to Dungeon
+  renderer.changeZone('dungeon', 152, 220);
+  assert.equal(renderer.currentZone, 'dungeon');
+  assert.equal(renderer.dungeonEntities.length, 5);
+});
+
+test('GameRenderer detects dungeon encounters in Dungeon zone', () => {
+  const renderer = new GameRenderer(null);
+  const input = new InputManager();
+
+  renderer.changeZone('dungeon', 152, 220);
+
+  // Move adjacent to first encounter (Bramble Sproutling at col 9, row 12)
+  const enc0 = renderer.dungeonEntities[0];
+  renderer.player.x = enc0.col * renderer.tileSize;
+  renderer.player.y = enc0.row * renderer.tileSize;
+
+  renderer.update(0.01, input);
+  assert.ok(renderer.activeInteraction);
+  assert.equal(renderer.activeInteraction.type, 'encounter');
+  assert.equal(renderer.activeInteraction.id, 'enc_sproutling');
+});

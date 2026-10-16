@@ -50,9 +50,11 @@ function build() {
   // Read modular source files
   const constantsCode = fs.readFileSync(path.join(srcDir, 'data', 'constants.js'), 'utf8');
   const gameDataCode = fs.readFileSync(path.join(srcDir, 'data', 'game-data.js'), 'utf8');
+  const questionsCode = fs.readFileSync(path.join(srcDir, 'data', 'questions.js'), 'utf8');
   const spritesCode = fs.readFileSync(path.join(srcDir, 'client', 'sprites.js'), 'utf8');
   const audioCode = fs.readFileSync(path.join(srcDir, 'client', 'audio.js'), 'utf8');
   const inputCode = fs.readFileSync(path.join(srcDir, 'client', 'input.js'), 'utf8');
+  const encounterCode = fs.readFileSync(path.join(srcDir, 'client', 'encounter.js'), 'utf8');
   const rendererCode = fs.readFileSync(path.join(srcDir, 'client', 'renderer.js'), 'utf8');
   const uiCode = fs.readFileSync(path.join(srcDir, 'client', 'ui.js'), 'utf8');
   const appCode = fs.readFileSync(path.join(srcDir, 'client', 'app.js'), 'utf8');
@@ -62,9 +64,11 @@ function build() {
   const sourceFiles = [
     { name: 'constants.js', code: constantsCode },
     { name: 'game-data.js', code: gameDataCode },
+    { name: 'questions.js', code: questionsCode },
     { name: 'sprites.js', code: spritesCode },
     { name: 'audio.js', code: audioCode },
     { name: 'input.js', code: inputCode },
+    { name: 'encounter.js', code: encounterCode },
     { name: 'renderer.js', code: rendererCode },
     { name: 'ui.js', code: uiCode },
     { name: 'app.js', code: appCode },
@@ -84,12 +88,16 @@ function build() {
     stripModules(constantsCode),
     '/* --- GAME DATA & GENERATORS --- */',
     stripModules(gameDataCode),
+    '/* --- SYNTHETIC QUESTIONS & ENCOUNTERS --- */',
+    stripModules(questionsCode),
     '/* --- PROCEDURAL SPRITES & ICONS --- */',
     stripModules(spritesCode),
     '/* --- PROCEDURAL AUDIO SYNTHESIZER --- */',
     stripModules(audioCode),
     '/* --- DUAL KEYBOARD & TOUCH INPUT --- */',
     stripModules(inputCode),
+    '/* --- ENCOUNTER COMBAT ENGINE --- */',
+    stripModules(encounterCode),
     '/* --- CANVAS 2D RENDERER --- */',
     stripModules(rendererCode),
     '/* --- SEMANTIC UI OVERLAY --- */',
@@ -104,6 +112,10 @@ function build() {
 // Target: Copy-paste to Cloudflare Workers Quick Edit or deploy via Wrangler.
 
 ${stripModules(constantsCode)}
+
+${stripModules(gameDataCode)}
+
+${stripModules(questionsCode)}
 
 ${stripModules(stylesCode)}
 
@@ -163,6 +175,7 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+
   const url = new URL(event.request.url);
 
   if (url.pathname === '/' || url.pathname === '/manifest.webmanifest') {
@@ -179,7 +192,8 @@ self.addEventListener('fetch', (event) => {
       })
     );
   }
-});\`;
+});
+\`;
 }
 
 const CLIENT_BUNDLE = ${JSON.stringify(clientBundle)};
@@ -244,8 +258,8 @@ export default {
         status: 'ok',
         game: 'QUEST: Kentucky',
         gradeBand: '6-8',
-        phase: 1,
-        mode: 'guest-first',
+        phase: 2,
+        mode: 'single-player-vertical-slice',
       }), {
         headers: {
           'Content-Type': 'application/json',
@@ -264,6 +278,72 @@ export default {
           ...securityHeaders,
         },
       });
+    }
+
+    if (url.pathname === '/api/quests') {
+      return new Response(JSON.stringify({
+        quests: STARTER_QUESTS,
+      }), {
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'public, max-age=3600',
+          ...securityHeaders,
+        },
+      });
+    }
+
+    if (url.pathname === '/api/encounters') {
+      const questionMap = new Map(SYNTHETIC_QUESTIONS.map(q => [q.id, q]));
+      const sanitizedEncounters = DUNGEON_ENCOUNTERS.map(enc => {
+        let question = null;
+        if (enc.questionId) {
+          question = sanitizeQuestionForClient(questionMap.get(enc.questionId));
+        }
+        return {
+          ...enc,
+          question,
+        };
+      });
+
+      return new Response(JSON.stringify({
+        dungeon: 'The Verdant Sanctuary',
+        encounters: sanitizedEncounters,
+      }), {
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'public, max-age=3600',
+          ...securityHeaders,
+        },
+      });
+    }
+
+    if (url.pathname === '/api/answers' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const { questionId, selectedChoiceId } = body || {};
+
+        const question = SYNTHETIC_QUESTIONS.find(q => q.id === questionId);
+        if (!question) {
+          return new Response(JSON.stringify({ error: 'Question not found' }), {
+            status: 404,
+            headers: { 'Content-Type': 'application/json', ...securityHeaders },
+          });
+        }
+
+        const isCorrect = selectedChoiceId === question.answerKey;
+        return new Response(JSON.stringify({
+          accepted: true,
+          correct: isCorrect,
+          explanation: question.explanation,
+        }), {
+          headers: { 'Content-Type': 'application/json', ...securityHeaders },
+        });
+      } catch {
+        return new Response(JSON.stringify({ error: 'Invalid JSON payload' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', ...securityHeaders },
+        });
+      }
     }
 
     if (url.pathname === '/api/session') {

@@ -1,0 +1,324 @@
+// src/data/questions.js — Synthetic Curriculum Questions & Dungeon Encounter Data
+// Aligned with KAAC Middle Grades (Grades 6–8) Curriculum.
+// 100% Synthetic, original test items with complete provenance metadata.
+
+import { SUBJECTS, TARGET_GRADE_BAND } from './constants.js';
+
+export const SYNTHETIC_QUESTIONS = [
+  // --- SCIENCE (Verdant Wilds) ---
+  {
+    id: 'syn_sci_001',
+    subject: SUBJECTS.SCIENCE.id,
+    conceptIds: ['science.ecosystems.photosynthesis'],
+    gradeBand: TARGET_GRADE_BAND,
+    prompt: 'During photosynthesis in plant cells, which organelle captures radiant light energy to synthesize glucose?',
+    choices: [
+      { id: 'a', text: 'Mitochondrion' },
+      { id: 'b', text: 'Chloroplast' },
+      { id: 'c', text: 'Ribosome' },
+      { id: 'd', text: 'Endoplasmic reticulum' },
+    ],
+    answerKey: 'b',
+    explanation: 'Chloroplasts contain chlorophyll, the green pigment that absorbs sunlight to drive photosynthesis.',
+    difficulty: 1,
+    source: { type: 'synthetic', author: 'QUEST: KY Curriculum Team', license: 'CC-BY-4.0' },
+    reviewStatus: 'approved',
+    version: 1,
+  },
+  {
+    id: 'syn_sci_002',
+    subject: SUBJECTS.SCIENCE.id,
+    conceptIds: ['science.physics.newton-laws'],
+    gradeBand: TARGET_GRADE_BAND,
+    prompt: "According to Newton's First Law of Motion, an object in motion will remain in motion unless acted upon by what?",
+    choices: [
+      { id: 'a', text: 'An unbalanced external force' },
+      { id: 'b', text: 'A magnetic field' },
+      { id: 'c', text: 'A constant velocity' },
+      { id: 'd', text: 'A change in thermal energy' },
+    ],
+    answerKey: 'a',
+    explanation: "Newton's First Law (Law of Inertia) states an object maintains uniform velocity unless an unbalanced external force acts upon it.",
+    difficulty: 2,
+    source: { type: 'synthetic', author: 'QUEST: KY Curriculum Team', license: 'CC-BY-4.0' },
+    reviewStatus: 'approved',
+    version: 1,
+  },
+  {
+    id: 'syn_sci_003',
+    subject: SUBJECTS.SCIENCE.id,
+    conceptIds: ['science.earth.karst-geology'],
+    gradeBand: TARGET_GRADE_BAND,
+    prompt: 'Kentucky contains Mammoth Cave, the longest known cave system in the world. What type of soluble rock topography formed this landscape?',
+    choices: [
+      { id: 'a', text: 'Basaltic plateau' },
+      { id: 'b', text: 'Karst limestone' },
+      { id: 'c', text: 'Granite pluton' },
+      { id: 'd', text: 'Volcanic tuff' },
+    ],
+    answerKey: 'b',
+    explanation: 'Karst topography develops when acidic groundwater dissolves soluble bedrock such as limestone, forming sinkholes and extensive cavern networks.',
+    difficulty: 2,
+    source: { type: 'synthetic', author: 'QUEST: KY Curriculum Team', license: 'CC-BY-4.0' },
+    reviewStatus: 'approved',
+    version: 1,
+  },
+  {
+    id: 'syn_sci_004',
+    subject: SUBJECTS.SCIENCE.id,
+    conceptIds: ['science.biology.cell-theory'],
+    gradeBand: TARGET_GRADE_BAND,
+    prompt: 'Which cellular structure regulates what enters and exits the cell, maintaining homeostasis?',
+    choices: [
+      { id: 'a', text: 'Cell membrane' },
+      { id: 'b', text: 'Nucleolus' },
+      { id: 'c', text: 'Vacuole membrane' },
+      { id: 'd', text: 'Centriole' },
+    ],
+    answerKey: 'a',
+    explanation: 'The selectively permeable phospholipid bilayer of the cell membrane controls the transport of substances into and out of the cell.',
+    difficulty: 1,
+    source: { type: 'synthetic', author: 'QUEST: KY Curriculum Team', license: 'CC-BY-4.0' },
+    reviewStatus: 'approved',
+    version: 1,
+  },
+
+  // --- MATHEMATICS (Cipher Caverns) ---
+  {
+    id: 'syn_math_001',
+    subject: SUBJECTS.MATH.id,
+    conceptIds: ['math.algebra.linear-equations'],
+    gradeBand: TARGET_GRADE_BAND,
+    prompt: 'Solve for x in the equation: 3x - 7 = 14.',
+    choices: [
+      { id: 'a', text: 'x = 5' },
+      { id: 'b', text: 'x = 7' },
+      { id: 'c', text: 'x = 8' },
+      { id: 'd', text: 'x = 21' },
+    ],
+    answerKey: 'b',
+    explanation: 'Add 7 to both sides: 3x = 21. Divide by 3: x = 7.',
+    difficulty: 1,
+    source: { type: 'synthetic', author: 'QUEST: KY Curriculum Team', license: 'CC-BY-4.0' },
+    reviewStatus: 'approved',
+    version: 1,
+  },
+  {
+    id: 'syn_math_002',
+    subject: SUBJECTS.MATH.id,
+    conceptIds: ['math.number-sense.primes'],
+    gradeBand: TARGET_GRADE_BAND,
+    prompt: 'What is the prime factorization of 72?',
+    choices: [
+      { id: 'a', text: '2³ × 3²' },
+      { id: 'b', text: '2² × 3³' },
+      { id: 'c', text: '2⁴ × 3' },
+      { id: 'd', text: '8 × 9' },
+    ],
+    answerKey: 'a',
+    explanation: '72 = 8 × 9 = 2³ × 3². (Note that 8 and 9 are not prime numbers themselves).',
+    difficulty: 2,
+    source: { type: 'synthetic', author: 'QUEST: KY Curriculum Team', license: 'CC-BY-4.0' },
+    reviewStatus: 'approved',
+    version: 1,
+  },
+  {
+    id: 'syn_math_003',
+    subject: SUBJECTS.MATH.id,
+    conceptIds: ['math.geometry.angles'],
+    gradeBand: TARGET_GRADE_BAND,
+    prompt: 'If two angles are supplementary and one angle measures 65°, what is the measure of the second angle?',
+    choices: [
+      { id: 'a', text: '25°' },
+      { id: 'b', text: '115°' },
+      { id: 'c', text: '125°' },
+      { id: 'd', text: '180°' },
+    ],
+    answerKey: 'b',
+    explanation: 'Supplementary angles sum to 180°. 180° - 65° = 115°.',
+    difficulty: 1,
+    source: { type: 'synthetic', author: 'QUEST: KY Curriculum Team', license: 'CC-BY-4.0' },
+    reviewStatus: 'approved',
+    version: 1,
+  },
+
+  // --- SOCIAL STUDIES (Kingdoms of Time) ---
+  {
+    id: 'syn_ss_001',
+    subject: SUBJECTS.SOCIAL_STUDIES.id,
+    conceptIds: ['social_studies.ky-history.statehood'],
+    gradeBand: TARGET_GRADE_BAND,
+    prompt: 'In 1792, Kentucky was admitted to the Union as which numbered state?',
+    choices: [
+      { id: 'a', text: '13th' },
+      { id: 'b', text: '14th' },
+      { id: 'c', text: '15th' },
+      { id: 'd', text: '16th' },
+    ],
+    answerKey: 'c',
+    explanation: 'Kentucky was admitted as the 15th state on June 1, 1792, following Vermont (14th).',
+    difficulty: 1,
+    source: { type: 'synthetic', author: 'QUEST: KY Curriculum Team', license: 'CC-BY-4.0' },
+    reviewStatus: 'approved',
+    version: 1,
+  },
+  {
+    id: 'syn_ss_002',
+    subject: SUBJECTS.SOCIAL_STUDIES.id,
+    conceptIds: ['social_studies.us-history.constitution'],
+    gradeBand: TARGET_GRADE_BAND,
+    prompt: 'Which constitutional principle divides government power between national and state governments?',
+    choices: [
+      { id: 'a', text: 'Federalism' },
+      { id: 'b', text: 'Separation of powers' },
+      { id: 'c', text: 'Popular sovereignty' },
+      { id: 'd', text: 'Judicial review' },
+    ],
+    answerKey: 'a',
+    explanation: 'Federalism is the system of shared power and sovereignty between the central national government and regional state governments.',
+    difficulty: 2,
+    source: { type: 'synthetic', author: 'QUEST: KY Curriculum Team', license: 'CC-BY-4.0' },
+    reviewStatus: 'approved',
+    version: 1,
+  },
+
+  // --- LANGUAGE ARTS (Whispering Archives) ---
+  {
+    id: 'syn_la_001',
+    subject: SUBJECTS.LANGUAGE_ARTS.id,
+    conceptIds: ['language_arts.literary-devices.figurative-language'],
+    gradeBand: TARGET_GRADE_BAND,
+    prompt: 'Which figure of speech is demonstrated in the line: "The wind whispered through the hollow pines"?',
+    choices: [
+      { id: 'a', text: 'Hyperbole' },
+      { id: 'b', text: 'Personification' },
+      { id: 'c', text: 'Simile' },
+      { id: 'd', text: 'Oxymoron' },
+    ],
+    answerKey: 'b',
+    explanation: 'Personification gives human characteristics, such as whispering, to non-human elements like wind.',
+    difficulty: 1,
+    source: { type: 'synthetic', author: 'QUEST: KY Curriculum Team', license: 'CC-BY-4.0' },
+    reviewStatus: 'approved',
+    version: 1,
+  },
+  {
+    id: 'syn_la_002',
+    subject: SUBJECTS.LANGUAGE_ARTS.id,
+    conceptIds: ['language_arts.literature.animal-farm'],
+    gradeBand: TARGET_GRADE_BAND,
+    prompt: 'In George Orwell\'s novella "Animal Farm", what literary genre uses anthropomorphic animals to represent human political history?',
+    choices: [
+      { id: 'a', text: 'Allegory' },
+      { id: 'b', text: 'Sonnet' },
+      { id: 'c', text: 'Memoir' },
+      { id: 'd', text: 'Epistle' },
+    ],
+    answerKey: 'a',
+    explanation: 'An allegory is a narrative with a secondary symbolic meaning beyond the literal storyline; Animal Farm allegorizes the Russian Revolution.',
+    difficulty: 2,
+    source: { type: 'synthetic', author: 'QUEST: KY Curriculum Team', license: 'CC-BY-4.0' },
+    reviewStatus: 'approved',
+    version: 1,
+  },
+
+  // --- ARTS & HUMANITIES (Gallery of Wonders) ---
+  {
+    id: 'syn_arts_001',
+    subject: SUBJECTS.ARTS_HUMANITIES.id,
+    conceptIds: ['arts_humanities.music.orchestral-families'],
+    gradeBand: TARGET_GRADE_BAND,
+    prompt: 'To which orchestral instrument family does the clarinet belong?',
+    choices: [
+      { id: 'a', text: 'Brass' },
+      { id: 'b', text: 'Woodwinds' },
+      { id: 'c', text: 'Strings' },
+      { id: 'd', text: 'Percussion' },
+    ],
+    answerKey: 'b',
+    explanation: 'The clarinet is a single-reed woodwind instrument, characterized by its cylindrical bore and wooden/composite body.',
+    difficulty: 1,
+    source: { type: 'synthetic', author: 'QUEST: KY Curriculum Team', license: 'CC-BY-4.0' },
+    reviewStatus: 'approved',
+    version: 1,
+  },
+];
+
+/**
+ * Returns a question sanitized for the client (strips answerKey).
+ * Follows Answer Key Secrecy rule: client never receives the answer key prior to answer submission.
+ * @param {object} question
+ * @returns {object}
+ */
+export function sanitizeQuestionForClient(question) {
+  if (!question) return null;
+  const { answerKey, ...clientPayload } = question;
+  return clientPayload;
+}
+
+/**
+ * Dungeon encounter sequence definitions for the single-player vertical slice.
+ * Dungeon: "The Verdant Sanctuary" in the Verdant Wilds.
+ */
+export const DUNGEON_ENCOUNTERS = [
+  {
+    index: 0,
+    id: 'enc_sproutling',
+    name: 'Bramble Sproutling',
+    subjectId: 'science',
+    type: 'basic',
+    hp: 1,
+    maxHp: 1,
+    questionId: 'syn_sci_001',
+    introText: 'A mischievous Bramble Sproutling blocks the overgrown trail! Answer correctly to break its thorn shield.',
+    defeatText: 'The Sproutling scatters into blooming wildflowers!',
+  },
+  {
+    index: 1,
+    id: 'enc_cave_wisp',
+    name: 'Cipher Wisp',
+    subjectId: 'math',
+    type: 'basic',
+    hp: 1,
+    maxHp: 1,
+    questionId: 'syn_math_001',
+    introText: 'A glowing Cipher Wisp flits around an ancient pressure plate. Solve its equation to align the stones.',
+    defeatText: 'The Wisp chimes in harmony and opens the ancient chamber gate!',
+  },
+  {
+    index: 2,
+    id: 'enc_chrono_sentry',
+    name: 'Pioneer Sentry',
+    subjectId: 'social_studies',
+    type: 'elite',
+    hp: 1,
+    maxHp: 1,
+    questionId: 'syn_ss_001',
+    introText: 'A spectral Pioneer Sentry stands guard before the inner sanctum, testing your Commonwealth knowledge.',
+    defeatText: 'The Sentry salutes your academic prowess and steps aside!',
+  },
+  {
+    index: 3,
+    id: 'enc_word_specter',
+    name: 'Archival Specter',
+    subjectId: 'language_arts',
+    type: 'elite',
+    hp: 1,
+    maxHp: 1,
+    questionId: 'syn_la_001',
+    introText: 'An Archival Specter rustles through fallen parchment, challenging your command of literary devices.',
+    defeatText: 'The Specter leaves behind a glowing illuminated manuscript rune!',
+  },
+  {
+    index: 4,
+    id: 'enc_boss_guardian',
+    name: 'Overgrown Guardian (Boss)',
+    subjectId: 'science',
+    type: 'boss',
+    hp: 2, // Requires 2 successful questions to fell the boss
+    maxHp: 2,
+    questionIds: ['syn_sci_003', 'syn_sci_002'],
+    introText: 'The legendary Overgrown Guardian awakens, covered in Kentucky limestone runes and mossy armor!',
+    defeatText: 'The Overgrown Guardian bows deeply, restoring balance to the Verdant Wilds! The Quest is Complete!',
+  },
+];

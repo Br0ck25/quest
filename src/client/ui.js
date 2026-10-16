@@ -9,8 +9,8 @@ export class UIManager {
   constructor(rootElement, playerProfile, callbacks = {}) {
     this.root = rootElement;
     this.player = playerProfile;
-    this.callbacks = callbacks; // onSettingsChange, onInteraction, etc.
-    this.activeTab = null; // 'map' | 'quests' | 'inventory' | 'settings' | null
+    this.callbacks = callbacks;
+    this.activeTab = null;
 
     this.render();
     this.bindEvents();
@@ -28,13 +28,13 @@ export class UIManager {
           <div class="hud-meta">
             <div class="player-handle" id="hud-handle">${this.escapeHtml(this.player.handle)}</div>
             <div class="player-stats">
-              <span class="level-badge">LV ${this.player.level}</span>
+              <span class="level-badge" id="hud-level">LV ${this.player.level}</span>
               <div class="hp-bar-container" title="Health: ${this.player.hp}/${this.player.maxHp}">
-                <div class="hp-bar-fill" style="width: ${(this.player.hp / this.player.maxHp) * 100}%"></div>
+                <div class="hp-bar-fill" id="hud-hp-bar" style="width: ${(this.player.hp / this.player.maxHp) * 100}%"></div>
               </div>
               <span class="gold-counter">
                 <span class="gold-icon" aria-hidden="true">${getSvgIcon('scroll', PALETTE.GOLD, 14)}</span>
-                <span>${this.player.gold} G</span>
+                <span id="hud-gold">${this.player.gold} G</span>
               </span>
             </div>
           </div>
@@ -118,7 +118,7 @@ export class UIManager {
 
     // Close on escape key
     this.root.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && this.activeTab) {
+      if (e.key === 'Escape' && this.activeTab && this.activeTab !== 'encounter') {
         this.closePanel();
       }
     });
@@ -193,6 +193,17 @@ export class UIManager {
     if (container) {
       container.setAttribute('hidden', '');
     }
+  }
+
+  updatePlayerStats(player) {
+    this.player = player;
+    const levelEl = this.root.querySelector('#hud-level');
+    const hpBar = this.root.querySelector('#hud-hp-bar');
+    const goldEl = this.root.querySelector('#hud-gold');
+
+    if (levelEl) levelEl.textContent = `LV ${player.level}`;
+    if (hpBar) hpBar.style.width = `${Math.max(0, (player.hp / player.maxHp) * 100)}%`;
+    if (goldEl) goldEl.textContent = `${player.gold} G`;
   }
 
   renderMapPanel() {
@@ -329,6 +340,182 @@ export class UIManager {
           if (hudHandle) hudHandle.textContent = newHandle;
           this.openTab('settings');
         }
+      });
+    }
+  }
+
+  /**
+   * Opens the turn-based encounter question modal.
+   * @param {object} encounter
+   * @param {object} question (sanitized without answerKey)
+   * @param {(choiceId: string) => void} onSelectChoice
+   */
+  openEncounterModal(encounter, question, onSelectChoice) {
+    this.activeTab = 'encounter';
+    const container = this.root.querySelector('#panel-container');
+    const title = this.root.querySelector('#panel-title');
+    const body = this.root.querySelector('#panel-body');
+
+    if (!container || !title || !body) return;
+
+    soundEngine.playEncounterStart();
+    container.removeAttribute('hidden');
+
+    title.textContent = `Combat Encounter: ${encounter.name}`;
+
+    body.innerHTML = `
+      <div class="encounter-modal">
+        <header class="encounter-enemy-header">
+          <div class="enemy-info">
+            <span class="enemy-name">${this.escapeHtml(encounter.name)}</span>
+            <small class="enemy-type">${this.escapeHtml(encounter.type.toUpperCase())} · ${this.escapeHtml(encounter.subjectId)}</small>
+          </div>
+          <div class="enemy-hp-track">
+            <span>HP</span>
+            <div class="enemy-hp-bar">
+              <div class="enemy-hp-fill" id="enemy-hp-fill" style="width: 100%"></div>
+            </div>
+          </div>
+        </header>
+
+        <section class="question-card-prompt" id="question-prompt">
+          ${this.escapeHtml(question.prompt)}
+        </section>
+
+        <div class="choices-list" id="choices-container" role="radiogroup" aria-label="Question Choices">
+          ${question.choices.map(c => `
+            <button type="button" class="choice-btn" data-choice="${c.id}" role="radio" aria-checked="false">
+              <span class="choice-key">${c.id.toUpperCase()}</span>
+              <span class="choice-text">${this.escapeHtml(c.text)}</span>
+            </button>
+          `).join('')}
+        </div>
+
+        <div id="encounter-feedback-slot"></div>
+      </div>
+    `;
+
+    const choiceButtons = body.querySelectorAll('.choice-btn');
+    choiceButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const choiceId = btn.getAttribute('data-choice');
+        choiceButtons.forEach(b => (b.disabled = true));
+        if (onSelectChoice) {
+          onSelectChoice(choiceId);
+        }
+      });
+    });
+  }
+
+  /**
+   * Displays answer feedback and explanation card in the encounter modal.
+   */
+  showAnswerFeedback(result, onNext) {
+    const body = this.root.querySelector('#panel-body');
+    const feedbackSlot = this.root.querySelector('#encounter-feedback-slot');
+    if (!feedbackSlot) return;
+
+    if (result.correct) {
+      soundEngine.playCorrect();
+    } else {
+      soundEngine.playWrong();
+    }
+
+    const enemyHpFill = this.root.querySelector('#enemy-hp-fill');
+    if (enemyHpFill && result.enemyHp !== undefined) {
+      enemyHpFill.style.width = `${Math.max(0, result.enemyHp * 50)}%`;
+    }
+
+    feedbackSlot.innerHTML = `
+      <aside class="feedback-card ${result.correct ? 'feedback-correct' : 'feedback-incorrect'}">
+        <h4 class="feedback-title">${result.correct ? '✔ Correct Answer!' : '✖ Academic Review Feedback'}</h4>
+        <p class="feedback-text">${this.escapeHtml(result.explanation)}</p>
+        <button type="button" class="feedback-action-btn" id="feedback-next-btn">
+          ${result.enemyDefeated ? 'Claim Victory' : (result.playerDefeated ? 'Recover at Sanctuary' : 'Next Question')}
+        </button>
+      </aside>
+    `;
+
+    const nextBtn = feedbackSlot.querySelector('#feedback-next-btn');
+    if (nextBtn) {
+      nextBtn.focus();
+      nextBtn.addEventListener('click', () => {
+        soundEngine.playClick();
+        if (onNext) onNext();
+      });
+    }
+  }
+
+  /**
+   * Displays the Victory Celebration modal upon defeating the boss.
+   */
+  showVictoryModal(rewards, onDone) {
+    this.activeTab = 'victory';
+    const container = this.root.querySelector('#panel-container');
+    const title = this.root.querySelector('#panel-title');
+    const body = this.root.querySelector('#panel-body');
+
+    if (!container || !title || !body) return;
+
+    soundEngine.playFanfare();
+    container.removeAttribute('hidden');
+    title.textContent = 'Quest Complete!';
+
+    body.innerHTML = `
+      <article class="victory-card">
+        <div class="victory-icon">${getSvgIcon('trophy', PALETTE.GOLD, 48)}</div>
+        <h3 class="victory-title">The Verdant Sanctuary Restored!</h3>
+        <p class="victory-desc">
+          You answered every Governor's Cup question with precision, pacifying the Overgrown Guardian and restoring academic balance to Kentucky!
+        </p>
+        <div class="victory-rewards">
+          <span>+${rewards.xp || 150} XP</span>
+          <span>+${rewards.gold || 50} Gold</span>
+        </div>
+        <button type="button" class="feedback-action-btn" id="victory-done-btn">Return to Crossroads</button>
+      </article>
+    `;
+
+    const doneBtn = body.querySelector('#victory-done-btn');
+    if (doneBtn) {
+      doneBtn.focus();
+      doneBtn.addEventListener('click', () => {
+        this.closePanel();
+        if (onDone) onDone();
+      });
+    }
+  }
+
+  /**
+   * Shows NPC dialogue modal (e.g. Elder Sage of Berea).
+   */
+  showNpcDialogueModal(npc, onAcceptQuest) {
+    this.activeTab = 'npc';
+    const container = this.root.querySelector('#panel-container');
+    const title = this.root.querySelector('#panel-title');
+    const body = this.root.querySelector('#panel-body');
+
+    if (!container || !title || !body) return;
+
+    soundEngine.playChime();
+    container.removeAttribute('hidden');
+    title.textContent = npc.name;
+
+    body.innerHTML = `
+      <article class="quest-card">
+        <p class="quest-desc" style="font-size: 14px; line-height: 1.5;">${this.escapeHtml(npc.dialogue)}</p>
+        <footer class="quest-footer" style="margin-top: 12px;">
+          <button type="button" class="btn-secondary" id="npc-accept-btn">Accept Quest & Explore</button>
+        </footer>
+      </article>
+    `;
+
+    const acceptBtn = body.querySelector('#npc-accept-btn');
+    if (acceptBtn) {
+      acceptBtn.focus();
+      acceptBtn.addEventListener('click', () => {
+        this.closePanel();
+        if (onAcceptQuest) onAcceptQuest();
       });
     }
   }

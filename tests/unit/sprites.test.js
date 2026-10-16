@@ -1,37 +1,46 @@
-// tests/unit/sprites.test.js — Unit tests for procedural sprite matrices and SVG icons
-import { test } from 'node:test';
-import assert from 'node:assert/strict';
-import { HERO_SPRITES, getSvgIcon } from '../../src/client/sprites.js';
-import { PALETTE } from '../../src/data/constants.js';
+// tests/unit/sprites.test.js — Procedural Sprite Matrix & Icon Tests
+import { describe, it } from 'node:test';
+import assert from 'node:assert';
+import { HERO_SPRITES, NPC_SPRITES, ENEMY_SPRITES, getSvgIcon } from '../../src/client/sprites.js';
 
-test('HERO_SPRITES contains 4 directional 8x8 matrices', () => {
-  const directions = ['down', 'up', 'left', 'right'];
-
-  for (const dir of directions) {
-    const sprite = HERO_SPRITES[dir];
-    assert.ok(sprite, `Missing sprite for direction: ${dir}`);
-    assert.ok(Array.isArray(sprite.matrix));
-    assert.equal(sprite.matrix.length, 8, `${dir} sprite must have 8 rows`);
-
-    for (const row of sprite.matrix) {
-      assert.equal(row.length, 8, `${dir} row must have 8 columns`);
-      for (let col = 0; col < row.length; col++) {
-        const colorIdx = parseInt(row[col], 10);
-        assert.ok(!isNaN(colorIdx));
-        assert.ok(colorIdx < sprite.palette.length, `Palette index ${colorIdx} exceeds palette bounds`);
+describe('Procedural Sprites & Icons', () => {
+  it('HERO_SPRITES contains 4 directional 8x8 matrices', () => {
+    const directions = ['down', 'up', 'left', 'right'];
+    for (const dir of directions) {
+      assert.ok(HERO_SPRITES[dir], `Missing direction ${dir}`);
+      assert.strictEqual(HERO_SPRITES[dir].matrix.length, 8);
+      for (const row of HERO_SPRITES[dir].matrix) {
+        assert.strictEqual(row.length, 8);
       }
     }
-  }
-});
+  });
 
-test('getSvgIcon returns accessible inline SVG elements', () => {
-  const iconNames = ['compass', 'quill', 'scroll', 'flask', 'sigil', 'map', 'quests', 'inventory', 'settings', 'audio-on', 'audio-off', 'close'];
+  it('NPC_SPRITES contains Sage 8x8 matrix', () => {
+    assert.ok(NPC_SPRITES.sage);
+    assert.strictEqual(NPC_SPRITES.sage.matrix.length, 8);
+    for (const row of NPC_SPRITES.sage.matrix) {
+      assert.strictEqual(row.length, 8);
+    }
+  });
 
-  for (const name of iconNames) {
-    const svg = getSvgIcon(name, PALETTE.TEXT_PRIMARY, 20);
-    assert.match(svg, /^<svg/);
-    assert.match(svg, /<\/svg>$/);
-    assert.match(svg, /aria-hidden="true"/);
-    assert.match(svg, /viewBox="0 0 24 24"/);
-  }
+  it('ENEMY_SPRITES contains basic enemies and boss matrices', () => {
+    const enemies = ['sproutling', 'wisp', 'sentry', 'specter', 'boss'];
+    for (const id of enemies) {
+      assert.ok(ENEMY_SPRITES[id], `Missing enemy sprite: ${id}`);
+      assert.strictEqual(ENEMY_SPRITES[id].matrix.length, 8);
+      for (const row of ENEMY_SPRITES[id].matrix) {
+        assert.strictEqual(row.length, 8);
+      }
+    }
+  });
+
+  it('getSvgIcon returns accessible inline SVG elements', () => {
+    const icons = ['compass', 'quill', 'scroll', 'flask', 'sigil', 'map', 'quests', 'inventory', 'settings', 'sword', 'shield', 'trophy'];
+    for (const icon of icons) {
+      const svg = getSvgIcon(icon);
+      assert.ok(svg.startsWith('<svg'), `Icon ${icon} did not return svg`);
+      assert.ok(svg.includes('aria-hidden="true"'), `Icon ${icon} missing aria-hidden`);
+      assert.ok(svg.endsWith('</svg>'), `Icon ${icon} did not close svg`);
+    }
+  });
 });

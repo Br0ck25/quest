@@ -69,6 +69,101 @@ export const HERO_SPRITES = {
 };
 
 /**
+ * 8x8 Procedural NPC Sprites (Elder Sage in Hub).
+ */
+export const NPC_SPRITES = {
+  sage: {
+    palette: ['transparent', PALETTE.PARCHMENT, PALETTE.BORDER_FOCUS, PALETTE.BG_DARK, PALETTE.GOLD, PALETTE.TEXT_SECONDARY],
+    matrix: [
+      '05555550',
+      '55111155',
+      '51311315',
+      '01555510',
+      '02244220',
+      '22244222',
+      '02222220',
+      '03300330',
+    ],
+  },
+};
+
+/**
+ * 8x8 Procedural Dungeon Enemy Sprites.
+ */
+export const ENEMY_SPRITES = {
+  // Bramble Sproutling (Science - Verdant Wilds)
+  sproutling: {
+    palette: ['transparent', PALETTE.SCIENCE, PALETTE.SUCCESS, PALETTE.PARCHMENT, PALETTE.BG_DARK],
+    matrix: [
+      '00200200',
+      '01211210',
+      '01111110',
+      '11411411',
+      '11133111',
+      '01111110',
+      '00100100',
+      '01000010',
+    ],
+  },
+  // Cipher Wisp (Math - Cipher Caverns)
+  wisp: {
+    palette: ['transparent', PALETTE.MATH, PALETTE.BORDER_FOCUS, PALETTE.GOLD, PALETTE.TEXT_PRIMARY],
+    matrix: [
+      '00022000',
+      '00244200',
+      '02433420',
+      '24311342',
+      '24311342',
+      '02433420',
+      '00244200',
+      '00022000',
+    ],
+  },
+  // Pioneer Sentry (Social Studies - Chrono Archives)
+  sentry: {
+    palette: ['transparent', PALETTE.SOCIAL_STUDIES, PALETTE.PARCHMENT, PALETTE.BG_DARK, PALETTE.SURFACE_ELEVATED],
+    matrix: [
+      '01111110',
+      '01111110',
+      '02322320',
+      '00222200',
+      '04411440',
+      '44411444',
+      '04444440',
+      '03000030',
+    ],
+  },
+  // Archival Specter (Language Arts - Whispering Archives)
+  specter: {
+    palette: ['transparent', PALETTE.LANGUAGE_ARTS, PALETTE.PARCHMENT, PALETTE.TEXT_PRIMARY, PALETTE.BG_DARK],
+    matrix: [
+      '00111100',
+      '01111110',
+      '11411411',
+      '11111111',
+      '01222210',
+      '01222210',
+      '10100101',
+      '10000001',
+    ],
+  },
+  // Overgrown Guardian (Science Boss - Verdant Wilds)
+  boss: {
+    palette: ['transparent', PALETTE.SCIENCE, PALETTE.SURFACE_ELEVATED, PALETTE.GOLD, PALETTE.PARCHMENT, PALETTE.SUCCESS, PALETTE.BORDER_FOCUS],
+    matrix: [
+      '00155100',
+      '01222210',
+      '12644621',
+      '12244221',
+      '01222210',
+      '13111131',
+      '13155131',
+      '01100110',
+    ],
+  },
+};
+
+/**
  * Draws a procedural pixel matrix sprite onto a canvas 2D context.
  * @param {CanvasRenderingContext2D} ctx
  * @param {object} sprite
@@ -97,14 +192,14 @@ export function renderPixelSprite(ctx, sprite, destX, destY, pixelScale = 2) {
 
 /**
  * Generates an offscreen Canvas texture atlas containing 16x16 procedural terrain tiles.
- * Caches grass, paths, water, trees, and subject stone shrines.
+ * Caches grass, paths, water, trees, dungeon bricks, and portal tiles.
  * @returns {HTMLCanvasElement|null}
  */
 export function createTileAtlas() {
   if (typeof document === 'undefined') return null;
 
   const atlas = document.createElement('canvas');
-  atlas.width = 128;
+  atlas.width = 160;
   atlas.height = 128;
   const ctx = atlas.getContext('2d');
   if (!ctx) return null;
@@ -163,6 +258,23 @@ export function createTileAtlas() {
   ctx.fillStyle = '#10B981'; // Sunlight tip
   ctx.fillRect(68, 4, 4, 4);
 
+  // 6. Dungeon Stone Floor (Index 5: 80, 0)
+  ctx.fillStyle = '#1E293B'; // Slate 800 base
+  ctx.fillRect(80, 0, 16, 16);
+  ctx.fillStyle = '#334155'; // Slate 700 flagstone lines
+  ctx.strokeRect(80.5, 0.5, 15, 15);
+  ctx.fillStyle = '#475569';
+  ctx.fillRect(83, 3, 2, 2);
+  ctx.fillRect(91, 10, 2, 2);
+
+  // 7. Dungeon Gateway / Arch (Index 6: 96, 0)
+  ctx.fillStyle = '#0F172A';
+  ctx.fillRect(96, 0, 16, 16);
+  ctx.fillStyle = '#38BDF8'; // Sky glow
+  ctx.fillRect(99, 2, 10, 14);
+  ctx.fillStyle = '#F8FAFC';
+  ctx.fillRect(102, 6, 4, 6);
+
   return atlas;
 }
 
@@ -199,6 +311,12 @@ export function getSvgIcon(iconName, color = PALETTE.TEXT_PRIMARY, size = 20) {
       return `<svg ${common}><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>`;
     case 'audio-off':
       return `<svg ${common}><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>`;
+    case 'sword':
+      return `<svg ${common}><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"></polyline><line x1="13" y1="19" x2="19" y2="13"></line><line x1="16" y1="16" x2="20" y2="20"></line><line x1="19" y1="21" x2="21" y2="19"></line></svg>`;
+    case 'shield':
+      return `<svg ${common}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>`;
+    case 'trophy':
+      return `<svg ${common}><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17c0 .55-.45 1-1 1H8c-.55 0-1 .45-1 1v1h10v-1c0-.55-.45-1-1-1h-1c-.55 0-1-.45-1-1v-2.34"></path><path d="M6 4h12v7a6 6 0 0 1-12 0V4z"></path></svg>`;
     case 'close':
       return `<svg ${common}><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
     default:

@@ -80,3 +80,39 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
     - Endpoints for root HTML shell (`/`), PWA Web App Manifest (`/manifest.webmanifest`), and Service Worker (`/sw.js`).
     - Cloudflare Worker bundled copy-paste artifact (`worker.js`) strictly under 2,000 line limit (931 lines).
     - Expanded test coverage across unit and contract suites to 26 passing tests.
+- **Phase 2: Single-Player Vertical Slice**:
+  - **Synthetic Question Bank (`src/data/questions.js`)**:
+    - Original Middle Grades (Grades 6–8) test items covering Science (ecosystems, Newton's laws, karst geology, cell biology), Mathematics (algebra, prime factorization, geometry), Social Studies (Kentucky statehood, US Constitution), Language Arts (figurative language, *Animal Farm* allegory), and Arts & Humanities (woodwind instruments).
+    - Complete provenance metadata and schema compliance (`sanitizeQuestionForClient` ensuring strict Answer Key Secrecy).
+  - **Turn-Based Question Combat State Machine (`src/client/encounter.js`)**:
+    - Complete turn-based encounter state machine with states: `IDLE`, `QUESTION_ACTIVE`, `ANSWER_FEEDBACK`, `ENCOUNTER_VICTORY`, and `PLAYER_DEFEATED`.
+    - Damage tracking for enemies and player; multi-hit boss battles requiring sequential correct answers.
+    - Safe recovery retry mechanism returning player to safety with full health upon defeat, preventing soft locks.
+  - **Multi-Zone Procedural World Engine (`src/client/renderer.js`)**:
+    - Connected zones: Berea Crossroads Hub (starter village), Red River Trail (winding wilderness route), and The Verdant Sanctuary (5-chamber dungeon).
+    - Tile-based collision detection preventing player movement through solid obstacles (water, stone walls, dense trees).
+    - Boundary trigger detection for seamless transitions between zones.
+    - Proximity interaction detection for Berea Sage NPC, 5 subject shrines, and dungeon encounters.
+  - **Procedural Sprites & Vector Assets (`src/client/sprites.js`)**:
+    - 8×8 procedural pixel matrices for Elder Sage NPC, Bramble Sproutling, Cipher Wisp, Pioneer Sentry, Archival Specter, and Overgrown Guardian Boss.
+    - Offscreen Canvas tile atlas caching dungeon stone floor and gateway portal arch textures.
+    - Inline SVG icons for combat weapons, shields, and victory trophies.
+  - **Procedural Web Audio FX (`src/client/audio.js`)**:
+    - Synthesizers for combat encounter cues, attack impact, correct answer chime, incorrect feedback buzz, and victory fanfare.
+  - **Accessible Semantic Combat UI Overlay (`src/client/ui.js` & `src/client/styles.js`)**:
+    - Semantic DOM encounter dialog (`role="dialog" aria-modal="true"`) with enemy status, question prompt, and 4 high-contrast choice buttons (minimum 48×48px touch targets, keyboard navigation).
+    - Academic explanation feedback card providing respectful explanations for incorrect answers.
+    - Quest completion celebration modal with XP/Gold awards and unlocked relic.
+    - NPC dialogue modal for accepting quests.
+  - **Application Orchestration (`src/client/app.js`)**:
+    - Complete game loop linking exploration, NPC quest acceptance, zone transitions, combat encounters, boss victory celebration, profile XP/Gold leveling, and local guest persistence.
+  - **Server-Authoritative Edge Endpoints (`src/server/worker.js`)**:
+    - `/api/health` reporting Phase 2 and `single-player-vertical-slice` mode.
+    - `/api/quests` serving curriculum starter quests.
+    - `/api/encounters` serving sanitized dungeon encounter sequences without leaking answer keys.
+    - `/api/answers` server-authoritative answer validation endpoint.
+  - **Testing & Documentation (`README.md`, `tests/unit/questions.test.js`, `tests/unit/encounter.test.js`)**:
+    - Comprehensive manual controls documentation and Phase 2 slice walkthrough in `README.md`.
+    - Unit tests for questions, combat state machine, zone transitions, audio FX, and sprites.
+    - Expanded test suite to 44 passing tests (0 failures).
+    - Single-file Cloudflare Worker bundle artifact (`worker.js`) at 1,703 lines (under 2,000 line budget).

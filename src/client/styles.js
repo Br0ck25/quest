@@ -148,26 +148,24 @@ html, body {
 
 .hud-btn {
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
   min-width: 48px;
   min-height: 48px;
-  padding: 6px 10px;
-  background-color: var(--color-surface-elevated);
-  color: var(--color-text-primary);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: 6px;
+  padding: 4px 6px;
+  background-color: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--color-text-secondary);
   font-family: var(--font-ui);
-  font-size: 12px;
-  font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.15s, border-color 0.15s;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
 }
 
 .hud-btn:hover {
-  background-color: var(--color-surface-accent);
-  border-color: var(--color-border-focus);
+  background-color: var(--color-surface-elevated);
+  color: var(--color-text-primary);
 }
 
 .hud-btn:focus-visible {
@@ -175,13 +173,10 @@ html, body {
   outline-offset: 2px;
 }
 
-@media (max-width: 480px) {
-  .btn-label {
-    display: none;
-  }
-  .hud-btn {
-    padding: 6px;
-  }
+.btn-label {
+  font-size: 10px;
+  font-weight: 600;
+  margin-top: 2px;
 }
 
 /* Canvas Viewport */
@@ -190,33 +185,33 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--color-bg-dark);
   position: relative;
+  background-color: var(--color-bg-dark);
   overflow: hidden;
 }
 
 #game-canvas {
+  display: block;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
-  display: block;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-  background-color: #000;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
 }
 
-/* Modals & Panels */
+/* Modal Overlay Panels */
 .panel-container {
   position: absolute;
   top: 52px;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(15, 23, 42, 0.85);
+  background-color: rgba(15, 23, 42, 0.85);
   backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 16px;
-  z-index: 50;
+  z-index: 40;
 }
 
 .panel-container[hidden] {
@@ -225,15 +220,15 @@ html, body {
 
 .panel-card {
   width: 100%;
-  max-width: 520px;
-  max-height: 80vh;
+  max-width: 540px;
+  max-height: 90vh;
   background-color: var(--color-surface);
-  border: 2px solid var(--color-border-focus);
+  border: 2px solid var(--color-border-subtle);
   border-radius: 12px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
 }
 
 .panel-header {
@@ -252,11 +247,11 @@ html, body {
 }
 
 .panel-close-btn {
-  min-width: 48px;
-  min-height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
+  min-width: 48px;
+  min-height: 48px;
   background: transparent;
   border: none;
   color: var(--color-text-secondary);
@@ -265,8 +260,8 @@ html, body {
 }
 
 .panel-close-btn:hover {
-  color: var(--color-text-primary);
   background-color: var(--color-surface-accent);
+  color: var(--color-text-primary);
 }
 
 .panel-close-btn:focus-visible {
@@ -283,14 +278,14 @@ html, body {
 
 /* Map Grid */
 .map-grid {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr;
   gap: 10px;
 }
 
 .realm-card {
   background-color: var(--color-surface-elevated);
-  padding: 12px;
+  padding: 10px 14px;
   border-radius: 6px;
   display: flex;
   flex-direction: column;
@@ -298,16 +293,16 @@ html, body {
 }
 
 .realm-title {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
 }
 
 .realm-subject, .realm-boss {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--color-text-secondary);
 }
 
-/* Quests */
+/* Quests List */
 .quests-list {
   display: flex;
   flex-direction: column;
@@ -316,8 +311,8 @@ html, body {
 
 .quest-card {
   background-color: var(--color-surface-elevated);
-  padding: 12px;
-  border-radius: 6px;
+  padding: 12px 14px;
+  border-radius: 8px;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -343,13 +338,20 @@ html, body {
 }
 
 .status-active {
-  background-color: var(--color-success);
-  color: var(--color-bg-dark);
+  background-color: rgba(56, 189, 248, 0.2);
+  color: var(--color-border-focus);
+  border: 1px solid var(--color-border-focus);
 }
 
 .status-available {
-  background-color: var(--color-surface-accent);
-  color: var(--color-text-primary);
+  background-color: rgba(148, 163, 184, 0.2);
+  color: var(--color-text-secondary);
+}
+
+.status-completed {
+  background-color: rgba(16, 185, 129, 0.2);
+  color: var(--color-success);
+  border: 1px solid var(--color-success);
 }
 
 .quest-desc {
@@ -363,19 +365,25 @@ html, body {
   justify-content: space-between;
   font-size: 11px;
   margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--color-surface-accent);
+}
+
+.quest-progress {
   color: var(--color-text-secondary);
 }
 
 .quest-rewards {
   color: var(--color-gold);
+  font-family: var(--font-mono);
   font-weight: 600;
 }
 
-/* Inventory */
+/* Inventory Grid */
 .inventory-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
 }
 
 .item-card {
@@ -383,19 +391,18 @@ html, body {
   align-items: center;
   gap: 12px;
   background-color: var(--color-surface-elevated);
-  padding: 10px;
-  border-radius: 6px;
+  padding: 10px 14px;
+  border-radius: 8px;
 }
 
 .item-icon-box {
   width: 44px;
   height: 44px;
+  border-radius: 8px;
+  background-color: var(--color-surface);
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
-  background-color: var(--color-surface);
-  flex-shrink: 0;
 }
 
 .item-details {
@@ -407,13 +414,11 @@ html, body {
 .item-name {
   font-size: 13px;
   font-weight: 700;
-  color: var(--color-text-primary);
 }
 
 .item-type {
   font-size: 11px;
   color: var(--color-text-secondary);
-  font-family: var(--font-mono);
 }
 
 .item-desc {
@@ -425,32 +430,31 @@ html, body {
 .settings-form {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
 .settings-group {
   border: 1px solid var(--color-border-subtle);
   border-radius: 8px;
-  padding: 12px;
+  padding: 12px 14px;
 }
 
 .settings-legend {
+  padding: 0 6px;
   font-size: 12px;
   font-weight: 700;
   color: var(--color-border-focus);
-  padding: 0 6px;
 }
 
 .setting-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 8px;
+  padding: 6px 0;
 }
 
 .setting-label {
   font-size: 13px;
-  color: var(--color-text-primary);
   display: flex;
   flex-direction: column;
 }
@@ -461,20 +465,19 @@ html, body {
 }
 
 .btn-toggle {
+  min-width: 48px;
   min-height: 48px;
-  min-width: 110px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 6px 12px;
+  padding: 6px 14px;
   background-color: var(--color-surface-elevated);
   border: 1px solid var(--color-border-subtle);
   border-radius: 6px;
   color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
   font-size: 12px;
   font-weight: 600;
-  cursor: pointer;
 }
 
 .btn-toggle.active {
@@ -485,11 +488,8 @@ html, body {
   border-color: var(--color-error);
 }
 
-.btn-toggle:focus-visible, .btn-secondary:focus-visible {
-  outline: 2px solid var(--color-border-focus);
-}
-
 .btn-secondary {
+  min-width: 48px;
   min-height: 48px;
   padding: 6px 14px;
   background-color: var(--color-surface-elevated);
@@ -525,6 +525,203 @@ html, body {
 
 .interaction-banner[hidden] {
   display: none !important;
+}
+
+/* Encounter & Combat Dialog */
+.encounter-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.encounter-enemy-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: var(--color-surface-elevated);
+  padding: 10px 14px;
+  border-radius: 8px;
+  border-left: 4px solid var(--color-subject-science);
+}
+
+.enemy-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.enemy-name {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.enemy-hp-track {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--color-error);
+}
+
+.enemy-hp-bar {
+  width: 70px;
+  height: 8px;
+  background-color: var(--color-bg-dark);
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid var(--color-border-subtle);
+}
+
+.enemy-hp-fill {
+  height: 100%;
+  background-color: var(--color-error);
+  transition: width 0.25s ease;
+}
+
+.question-card-prompt {
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--color-text-primary);
+  background-color: var(--color-surface-elevated);
+  padding: 14px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border-subtle);
+}
+
+.choices-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.choice-btn {
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 10px 14px;
+  background-color: var(--color-surface-elevated);
+  border: 2px solid var(--color-border-subtle);
+  border-radius: 8px;
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-family: var(--font-ui);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.choice-btn:hover {
+  border-color: var(--color-border-focus);
+}
+
+.choice-btn:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+}
+
+.choice-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-right: 10px;
+  border-radius: 4px;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border-focus);
+  color: var(--color-border-focus);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 11px;
+}
+
+.choice-btn.selected-correct {
+  border-color: var(--color-success);
+  background-color: rgba(16, 185, 129, 0.15);
+}
+
+.choice-btn.selected-incorrect {
+  border-color: var(--color-error);
+  background-color: rgba(239, 68, 68, 0.15);
+}
+
+.feedback-card {
+  padding: 12px 14px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.feedback-correct {
+  background-color: rgba(16, 185, 129, 0.12);
+  border: 1px solid var(--color-success);
+}
+
+.feedback-incorrect {
+  background-color: rgba(239, 68, 68, 0.12);
+  border: 1px solid var(--color-error);
+}
+
+.feedback-title {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.feedback-text {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--color-text-primary);
+}
+
+.feedback-action-btn {
+  min-height: 48px;
+  padding: 8px 16px;
+  background-color: var(--color-border-focus);
+  color: var(--color-bg-dark);
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  align-self: flex-end;
+}
+
+.victory-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  padding: 16px;
+}
+
+.victory-icon {
+  margin-bottom: 4px;
+}
+
+.victory-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--color-gold);
+}
+
+.victory-desc {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  line-height: 1.45;
+}
+
+.victory-rewards {
+  display: flex;
+  gap: 16px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  background-color: var(--color-surface-elevated);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--color-gold);
 }
 
 /* Touch Controls Overlay */
