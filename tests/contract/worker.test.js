@@ -14,8 +14,8 @@ test('Worker health route returns ok and phase status', async () => {
   assert.equal(data.status, 'ok');
   assert.equal(data.game, 'QUEST: Kentucky');
   assert.equal(data.gradeBand, '6-8');
-  assert.equal(data.phase, 5);
-  assert.equal(data.mode, 'progression-and-rewards');
+  assert.equal(data.phase, 6);
+  assert.equal(data.mode, 'multiplayer-coop');
 });
 
 test('Worker root returns semantic HTML with responsive canvas and UI root', async () => {
@@ -392,6 +392,141 @@ test('Worker claims quest completion reward idempotently (/api/quests/claim)', a
   assert.equal(data.level, 2);
   assert.equal(data.coins, 75); // 50 + 25 = 75
 });
+
+test('Worker serves multiplayer preset emotes list (/api/rooms/emotes)', async () => {
+  const req = new Request('http://localhost/api/rooms/emotes');
+  const res = await worker.fetch(req, {}, {});
+  assert.equal(res.status, 200);
+
+  const data = await res.json();
+  assert.ok(Array.isArray(data.emotes));
+  assert.ok(data.emotes.some((e) => e.id === 'cheer'));
+  assert.ok(data.emotes.some((e) => e.id === 'ready'));
+});
+
+test('Worker creates, joins, readies, and manages co-op room lifecycle', async () => {
+  const hostId = 'player_host_' + Math.random().toString(36).substring(2, 6);
+  const guestId = 'player_guest_' + Math.random().toString(36).substring(2, 6);
+
+  // 1. Create Room
+  const createReq = new Request('http://localhost/api/rooms/create', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ hostId, hostHandle: 'BluegrassHost' }),
+  });
+  const createRes = await worker.fetch(createReq, {}, {});
+  assert.equal(createRes.status, 200);
+  const createData = await createRes.json();
+  assert.equal(createData.success, true);
+  assert.ok(createData.room.code.startsWith('KY-'));
+  assert.equal(createData.room.status, 'LOBBY');
+  assert.equal(createData.room.players.length, 1);
+
+  const roomCode = createData.room.code;
+
+  // 2. Join Room
+  const joinReq = new Request('http://localhost/api/rooms/join', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code: roomCode, userId: guestId, handle: 'CardinalAlly' }),
+  });
+  const joinRes = await worker.fetch(joinReq, {}, {});
+  assert.equal(joinRes.status, 200);
+  const joinData = await joinRes.json();
+  assert.equal(joinData.success, true);
+  assert.equal(joinData.room.players.length, 2);
+
+  // 3. Guest toggles ready
+  const readyReq = new Request('http://localhost/api/rooms/ready', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code: roomCode, userId: guestId, ready: true }),
+  });
+  const readyRes = await worker.fetch(readyReq, {}, {});
+  assert.equal(readyRes.status, 200);
+  const readyData = await readyRes.json();
+  assert.equal(readyData.success, true);
+  const guestPlayer = readyData.room.players.find((p) => p.userId === guestId);
+  assert.equal(guestPlayer.ready, true);
+
+  // 4. Host starts encounter
+  const startReq = new Request('http://localhost/api/rooms/start', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code: roomCode, userId: hostId }),
+  });
+  const startRes = await worker.fetch(startReq, {}, {});
+  assert.equal(startRes.status, 200);
+  const startData = await startRes.json();
+  assert.equal(startData.success, true);
+  assert.equal(startData.room.status, 'ENCOUNTER');
+  assert.ok(startData.room.question);
+  assert.equal('answerKey' in startData.room.question, false, 'Answer key must not be exposed');
+
+  // 5. Submit answer
+  const answerReq = new Request('http://localhost/api/rooms/answer', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      code: roomCode,
+      userId: hostId,
+      choiceId: startData.room.question.choices[0].id,
+      idempotencyKey: 'idem_coop_' + Math.random().toString(36).substring(2, 8),
+    }),
+  });
+  const answerRes = await worker.fetch(answerReq, {}, {});
+  assert.equal(answerRes.status, 200);
+  const answerData = await answerRes.json();
+  assert.equal(answerData.success, true);
+  assert.equal(typeof answerData.verdict.isCorrect, 'boolean');
+
+  // 6. Send preset emote
+  const emoteReq = new Request('http://localhost/api/rooms/emote', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code: roomCode, userId: guestId, emoteId: 'high_five' }),
+  });
+  const emoteRes = await worker.fetch(emoteReq, {}, {});
+  assert.equal(emoteRes.status, 200);
+  const emoteData = await emoteRes.json();
+  assert.equal(emoteData.success, true);
+  assert.equal(emoteData.broadcastData.emote.id, 'high_five');
+
+  // 7. Get status
+  const statusReq = new Request(`http://localhost/api/rooms/status?code=${roomCode}`);
+  const statusRes = await worker.fetch(statusReq, {}, {});
+  assert.equal(statusRes.status, 200);
+  const statusData = await statusRes.json();
+  assert.equal(statusData.success, true);
+  assert.equal(statusData.room.code, roomCode);
+});
+
+test('Worker blocks brute force guessing of room codes with 429 status', async () => {
+  const suspectIp = '198.51.100.' + Math.floor(Math.random() * 200);
+
+  // 5 failed guesses
+  for (let i = 0; i < 5; i++) {
+    const req = new Request('http://localhost/api/rooms/join', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'cf-connecting-ip': suspectIp },
+      body: JSON.stringify({ code: 'KY-0000', userId: 'suspect_user', handle: 'Suspect' }),
+    });
+    const res = await worker.fetch(req, {}, {});
+    assert.equal(res.status, 400);
+  }
+
+  // 6th guess is rate limited with 429
+  const blockedReq = new Request('http://localhost/api/rooms/join', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'cf-connecting-ip': suspectIp },
+    body: JSON.stringify({ code: 'KY-0000', userId: 'suspect_user', handle: 'Suspect' }),
+  });
+  const blockedRes = await worker.fetch(blockedReq, {}, {});
+  assert.equal(blockedRes.status, 429);
+  const blockedData = await blockedRes.json();
+  assert.equal(blockedData.rateLimited, true);
+});
+
 
 
 

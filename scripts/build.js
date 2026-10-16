@@ -50,6 +50,16 @@ function stripModules(code) {
     .trim();
 }
 
+function condenseObjects(code) {
+  const stripped = stripModules(code).replace(/,\s*\/\/.*$/gm, ',');
+  return stripped
+    .replace(/,\n\s*/g, ', ')
+    .replace(/\{\n\s*/g, '{ ')
+    .replace(/\n\s*\}/g, ' }')
+    .replace(/\[\n\s*/g, '[ ')
+    .replace(/\n\s*\]/g, ' ]');
+}
+
 function build() {
   console.log('[Build] Verifying directory structure...');
   ensureDirectories();
@@ -62,6 +72,7 @@ function build() {
   const questionSchemaCode = fs.readFileSync(path.join(srcDir, 'data', 'question-schema.js'), 'utf8');
   const spacedRepetitionCode = fs.readFileSync(path.join(srcDir, 'data', 'spaced-repetition.js'), 'utf8');
   const dbCode = fs.readFileSync(path.join(srcDir, 'server', 'db.js'), 'utf8');
+  const roomsCode = fs.readFileSync(path.join(srcDir, 'server', 'rooms.js'), 'utf8');
   const workerCode = fs.readFileSync(path.join(srcDir, 'server', 'worker.js'), 'utf8');
   const spritesCode = fs.readFileSync(path.join(srcDir, 'client', 'sprites.js'), 'utf8');
   const audioCode = fs.readFileSync(path.join(srcDir, 'client', 'audio.js'), 'utf8');
@@ -81,6 +92,7 @@ function build() {
     { name: 'question-schema.js', code: questionSchemaCode },
     { name: 'spaced-repetition.js', code: spacedRepetitionCode },
     { name: 'db.js', code: dbCode },
+    { name: 'rooms.js', code: roomsCode },
     { name: 'worker.js', code: workerCode },
     { name: 'sprites.js', code: spritesCode },
     { name: 'audio.js', code: audioCode },
@@ -129,6 +141,9 @@ function build() {
   const processedWorker = workerCode
     .replace(/\r\n/g, '\n')
     .replace(/^import\s+[\s\S]*?from\s+['"][^'"]+['"];?\n?/gm, '')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/^\s*\/\/.*$/gm, '')
+    .replace(/\n\s*\n+/g, '\n')
     .replace('const html = createHtmlShell();', `const html = createHtmlShell(${JSON.stringify(clientBundle)});`)
     .trim();
 
@@ -139,17 +154,19 @@ function build() {
 
 ${stripModules(constantsCode)}
 
-${stripModules(gameDataCode)}
+${condenseObjects(gameDataCode)}
 
-${stripModules(progressionCode)}
+${condenseObjects(progressionCode)}
 
-${stripModules(questionsCode)}
+${condenseObjects(questionsCode)}
 
 ${stripModules(questionSchemaCode)}
 
 ${stripModules(spacedRepetitionCode)}
 
 ${stripModules(dbCode)}
+
+${stripModules(roomsCode)}
 
 const GAME_CSS = ${JSON.stringify(minifiedCss)};
 

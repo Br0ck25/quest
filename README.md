@@ -2,8 +2,8 @@
 
 > **Responsive Browser RPG for Middle Grades (Grades 6–8) preparing for KAAC Governor's Cup Academic Competition.**
 
-[![Tests](https://img.shields.io/badge/tests-103%20passing-brightgreen)](#testing)
-[![Phase](https://img.shields.io/badge/phase-5%20progression%20%26%20rewards-blue)](#phase-5-progression-cosmetic-rewards-and-anti-farming-controls)
+[![Tests](https://img.shields.io/badge/tests-115%20passing-brightgreen)](#testing)
+[![Phase](https://img.shields.io/badge/phase-6%20multiplayer%20co--op-blue)](#phase-6-multiplayer-co-op-rooms-websockets--authoritative-boss-combat)
 [![Cloudflare Workers](https://img.shields.io/badge/deployment-Cloudflare%20Workers-orange)](#deployment)
 
 ---
@@ -157,11 +157,49 @@ Phase 5 establishes server-authoritative level curves, non-pay-to-win cosmetic e
 
 ---
 
-## 7. Architecture Principles
+## 7. Phase 6: Multiplayer Co-op Rooms, WebSockets & Authoritative Boss Combat
+
+Phase 6 implements synchronized multiplayer co-op encounters with private room codes, edge WebSockets, and COPPA child-safety safeguards:
+
+### Private Room Codes & Capacity (`src/server/rooms.js`)
+- **Child-Friendly Room Codes**: Uppercase private codes formatted as `KY-XXXX` (e.g. `KY-4819`).
+- **2–4 Player Capacity**: Strict room boundary enforcing minimum 2 and maximum 4 concurrent players.
+- **Lobby Ready Checks**: Host starts ready; encounter can only start once all participants toggle ready.
+- **Anti-Brute Force Rate Limiting**: Max 5 failed room code guesses per 5 minutes per client session (returns HTTP `429 Too Many Requests`).
+
+### Authoritative Boss Combat & Question Synchronization
+- **Boss Encounter**: *Overgrown Colossus of the Wilds* with HP dynamically scaled to question volume.
+- **Answer Key Secrecy**: Clients receive sanitized questions stripped of `answerKey`. Correct answers deal 25 damage to the boss and award points (+100); wrong answers apply non-negative score penalties (-20).
+- **Synchronized Turn Advancement**: When any participant answers, all players advance to the next sanitized question.
+- **Victory & Rewards**: Felling the boss triggers a synchronized victory transition and grants XP and coin rewards.
+
+### Child Privacy & Preset Emotes (Zero PII)
+- **Zero Open Chat**: No free-text input or voice channels.
+- **Preset Emotes Only**: 6 child-safe preset emotes (`ready`, `cheer`, `thinking`, `focus`, `high_five`, `gg`).
+
+### Disconnect Grace Period & Host Migration
+- **45-Second Disconnect Grace**: Disconnected players retain their score and can seamlessly reconnect.
+- **Automatic Host Migration**: If the host disconnects, the next active participant is automatically promoted to host.
+
+### Phase 6 API Endpoints
+- `POST /api/rooms/create`: Create private co-op lobby (`{ hostId, hostHandle }`).
+- `POST /api/rooms/join`: Join private room with code and handle (rate-limited).
+- `POST /api/rooms/ready`: Toggle participant ready state.
+- `POST /api/rooms/start`: Host initiates co-op boss encounter.
+- `POST /api/rooms/answer`: Submit answer, damage boss, and update team score.
+- `POST /api/rooms/emote`: Broadcast child-safe preset emote.
+- `GET /api/rooms/status`: Retrieve full room state snapshot.
+- `GET /api/rooms/emotes`: Query catalog of approved preset emotes.
+- `GET /api/rooms/ws`: Cloudflare Workers WebSocket connection for real-time edge sync.
+
+---
+
+## 8. Architecture Principles
 
 - **Zero External Raster Images**: 100% procedural Canvas 2D sprites & inline SVG icons.
 - **Zero External Audio Files**: Synthesized procedural Web Audio API sound effects.
 - **Strict File Budget**: Every source file and compiled artifact is ≤ 2,000 lines.
 - **Edge Deployment Target**: Cloudflare Worker script (`worker.js`) compiled from `src/`.
 - **COPPA/FERPA Compliance**: Child-safe pseudonymous adventurer handles with zero PII and no open text/voice chat.
+
 

@@ -5,12 +5,14 @@ import { validateQuestion, detectDuplicates, importQuestions } from '../data/que
 import { computeSubjectProgress, getDueReviews } from '../data/spaced-repetition.js';
 import { COSMETIC_CATALOG, STARTER_COMPANION } from '../data/progression.js';
 import { DatabaseAdapter } from './db.js';
+import { RoomManager, PRESET_EMOTES, ROOM_STATES } from './rooms.js';
 import { GAME_CSS } from '../client/styles.js';
 
 // In-memory catalog, database adapter, and idempotency store for Cloudflare edge worker
 const QUESTION_CATALOG = [...SYNTHETIC_QUESTIONS];
 const IDEMPOTENCY_STORE = new Map();
 const defaultDb = new DatabaseAdapter();
+const defaultRoomManager = new RoomManager();
 
 export function createManifest() {
   const svgIcon192 = `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192"><rect width="192" height="192" rx="36" fill="${PALETTE.BG_DARK}"/><polygon points="96 28 156 64 156 128 96 164 36 128 36 64" fill="${PALETTE.SURFACE}" stroke="${PALETTE.BORDER_FOCUS}" stroke-width="8"/><circle cx="96" cy="96" r="32" fill="${PALETTE.MATH}"/><polygon points="96 74 114 108 78 108" fill="${PALETTE.GOLD}"/></svg>`;
@@ -155,9 +157,9 @@ export default {
         headers: { 'Content-Type': 'application/json', ...securityHeaders },
       });
 
-    // Health check endpoint (Phase 5)
+    // Health check endpoint (Phase 6)
     if (url.pathname === '/api/health') {
-      return json({ status: 'ok', game: 'QUEST: Kentucky', gradeBand: '6-8', phase: 5, mode: 'progression-and-rewards' });
+      return json({ status: 'ok', game: 'QUEST: Kentucky', gradeBand: '6-8', phase: 6, mode: 'multiplayer-coop' });
     }
 
     // Public Question Delivery endpoint (Sanitized, Rights-Gated)
@@ -384,6 +386,242 @@ export default {
       } catch {
         return json({ error: 'Invalid JSON payload' }, 400);
       }
+    }
+
+    // Multiplayer Preset Emotes Catalog Endpoint
+    if (url.pathname === '/api/rooms/emotes' && request.method === 'GET') {
+      return json({ emotes: PRESET_EMOTES });
+    }
+
+    // Create Multiplayer Co-op Room
+    if (url.pathname === '/api/rooms/create' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const hostId = body?.hostId || request.headers.get('x-guest-id') || 'guest_host';
+        const hostHandle = body?.hostHandle || 'BluegrassHost';
+        const room = defaultRoomManager.createRoom(hostId, hostHandle);
+        return json({ success: true, room: room.getSnapshot() });
+      } catch {
+        return json({ error: 'Invalid JSON payload' }, 400);
+      }
+    }
+
+    // Join Multiplayer Co-op Room (with anti-brute force rate limiting)
+    if (url.pathname === '/api/rooms/join' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const { code, handle } = body || {};
+        const userId = body?.userId || request.headers.get('x-guest-id') || 'guest_joiner';
+        const clientKey = request.headers.get('cf-connecting-ip') || userId;
+
+        if (!code) {
+          return json({ error: 'Room code is required' }, 400);
+        }
+
+        const result = defaultRoomManager.joinRoom(code, userId, handle || 'BluegrassAdventurer', clientKey);
+        if (!result.success) {
+          const status = result.rateLimited ? 429 : 400;
+          return json({ error: result.error, rateLimited: Boolean(result.rateLimited) }, status);
+        }
+
+        result.room.broadcastSnapshot('PLAYER_JOINED');
+        return json({ success: true, room: result.snapshot });
+      } catch {
+        return json({ error: 'Invalid JSON payload' }, 400);
+      }
+    }
+
+    // Toggle Ready State in Room Lobby
+    if (url.pathname === '/api/rooms/ready' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const { code, ready } = body || {};
+        const userId = body?.userId || request.headers.get('x-guest-id') || 'guest_default';
+
+        const room = defaultRoomManager.getRoom(code);
+        if (!room) return json({ error: 'Room not found or expired' }, 404);
+
+        const updated = room.setReady(userId, ready !== false);
+        if (!updated) return json({ error: 'User not in room' }, 400);
+
+        room.broadcastSnapshot('PLAYER_READY');
+        return json({ success: true, room: room.getSnapshot() });
+      } catch {
+        return json({ error: 'Invalid JSON payload' }, 400);
+      }
+    }
+
+    // Start Co-op Boss Encounter (Host only, >= 2 players, all ready)
+    if (url.pathname === '/api/rooms/start' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const { code } = body || {};
+        const userId = body?.userId || request.headers.get('x-guest-id') || 'guest_default';
+
+        const room = defaultRoomManager.getRoom(code);
+        if (!room) return json({ error: 'Room not found or expired' }, 404);
+
+        if (room.hostId !== userId) {
+          return json({ error: 'Only the host can start the co-op encounter' }, 403);
+        }
+
+        const approvedQuestions = QUESTION_CATALOG.filter((q) => q.active && q.rightsStatus === 'approved');
+        const startResult = room.startEncounter(approvedQuestions);
+        if (!startResult.success) {
+          return json({ error: startResult.error }, 400);
+        }
+
+        room.broadcastSnapshot('ENCOUNTER_STARTED');
+        return json({ success: true, room: room.getSnapshot() });
+      } catch {
+        return json({ error: 'Invalid JSON payload' }, 400);
+      }
+    }
+
+    // Co-op Synchronized Answer Submission with Boss Damage & Idempotency
+    if (url.pathname === '/api/rooms/answer' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const { code, choiceId, idempotencyKey } = body || {};
+        const userId = body?.userId || request.headers.get('x-guest-id') || 'guest_default';
+
+        const room = defaultRoomManager.getRoom(code);
+        if (!room) return json({ error: 'Room not found or expired' }, 404);
+
+        const verdict = room.submitAnswer(userId, choiceId, idempotencyKey);
+        if (!verdict.success) {
+          return json({ error: verdict.error, duplicate: Boolean(verdict.duplicate) }, 400);
+        }
+
+        let victoryReward = null;
+        if (verdict.status === ROOM_STATES.VICTORY) {
+          const xpRes = await db.addXp(userId, 150);
+          const walletRes = await db.recordWalletTransaction({
+            userId,
+            amountDelta: 50,
+            reason: 'coop_boss_victory',
+            idempotencyKey: `coop_win_${room.id}_${userId}`,
+          });
+          victoryReward = { xpAwarded: 150, coinsAwarded: 50, newLevel: xpRes.newLevel, newBalance: walletRes.newBalance };
+        }
+
+        room.broadcast({
+          type: 'ANSWER_SUBMITTED',
+          userId,
+          isCorrect: verdict.isCorrect,
+          damageDealt: verdict.damageDealt,
+          bossHp: verdict.bossHp,
+          status: verdict.status,
+          snapshot: room.getSnapshot(),
+        });
+
+        return json({ success: true, verdict, victoryReward, room: room.getSnapshot() });
+      } catch {
+        return json({ error: 'Invalid JSON payload' }, 400);
+      }
+    }
+
+    // Send Preset Emote (Child privacy: preset emotes only, no open text)
+    if (url.pathname === '/api/rooms/emote' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const { code, emoteId } = body || {};
+        const userId = body?.userId || request.headers.get('x-guest-id') || 'guest_default';
+
+        const room = defaultRoomManager.getRoom(code);
+        if (!room) return json({ error: 'Room not found or expired' }, 404);
+
+        const result = room.sendPresetEmote(userId, emoteId);
+        if (!result.success) {
+          return json({ error: result.error }, 400);
+        }
+
+        room.broadcast(result.broadcastData);
+        return json({ success: true, broadcastData: result.broadcastData });
+      } catch {
+        return json({ error: 'Invalid JSON payload' }, 400);
+      }
+    }
+
+    // Fetch Room Status / Snapshot
+    if (url.pathname === '/api/rooms/status' && request.method === 'GET') {
+      const code = url.searchParams.get('code');
+      const room = defaultRoomManager.getRoom(code);
+      if (!room) return json({ error: 'Room not found or expired' }, 404);
+
+      return json({ success: true, room: room.getSnapshot() });
+    }
+
+    // WebSocket Upgrade Handler for Live Co-op Sync
+    if (url.pathname === '/api/rooms/ws') {
+      const upgradeHeader = request.headers.get('Upgrade');
+      if (!upgradeHeader || upgradeHeader.toLowerCase() !== 'websocket') {
+        return json({ error: 'Expected WebSocket Upgrade header' }, 426);
+      }
+
+      const code = url.searchParams.get('code');
+      const userId = url.searchParams.get('userId');
+      const room = defaultRoomManager.getRoom(code);
+      if (!room) {
+        return json({ error: 'Room not found or expired' }, 404);
+      }
+
+      if (typeof WebSocketPair === 'undefined') {
+        return json({ error: 'WebSocketPair is not supported in this runtime environment' }, 501);
+      }
+
+      const webSocketPair = new WebSocketPair();
+      const [clientWs, serverWs] = Object.values(webSocketPair);
+
+      serverWs.accept();
+      room.setPlayerWs(userId, serverWs);
+      serverWs.send(JSON.stringify({ type: 'CONNECTED', snapshot: room.getSnapshot() }));
+
+      serverWs.addEventListener('message', (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.type === 'READY') {
+            room.setReady(userId, msg.ready !== false);
+            room.broadcastSnapshot('PLAYER_READY');
+          } else if (msg.type === 'START' && room.hostId === userId) {
+            const approvedQuestions = QUESTION_CATALOG.filter((q) => q.active && q.rightsStatus === 'approved');
+            room.startEncounter(approvedQuestions);
+            room.broadcastSnapshot('ENCOUNTER_STARTED');
+          } else if (msg.type === 'ANSWER') {
+            const verdict = room.submitAnswer(userId, msg.choiceId, msg.idempotencyKey);
+            room.broadcast({
+              type: 'ANSWER_SUBMITTED',
+              userId,
+              isCorrect: verdict.isCorrect,
+              damageDealt: verdict.damageDealt,
+              bossHp: verdict.bossHp,
+              status: verdict.status,
+              snapshot: room.getSnapshot(),
+            });
+          } else if (msg.type === 'EMOTE') {
+            const emoteResult = room.sendPresetEmote(userId, msg.emoteId);
+            if (emoteResult.success) {
+              room.broadcast(emoteResult.broadcastData);
+            }
+          }
+        } catch {
+          // ignore malformed ws message
+        }
+      });
+
+      serverWs.addEventListener('close', () => {
+        room.handleDisconnect(userId);
+        room.broadcastSnapshot('PLAYER_DISCONNECTED');
+      });
+
+      serverWs.addEventListener('error', () => {
+        room.handleDisconnect(userId);
+      });
+
+      return new Response(null, {
+        status: 101,
+        webSocket: clientWs,
+      });
     }
 
     // Server-Authoritative Answer Validation endpoint with D1 Persistence & Spaced Repetition
