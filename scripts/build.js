@@ -10,6 +10,7 @@ const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
 const srcDir = path.join(rootDir, 'src');
 const outputFile = path.join(rootDir, 'worker.js');
+const MAX_LINES = 2000;
 
 function ensureDirectories() {
   const dirs = [
@@ -26,56 +27,290 @@ function ensureDirectories() {
   }
 }
 
+/**
+ * Strips import and export keywords from code to allow clean inlining in a single script scope.
+ */
+function stripModules(code) {
+  return code
+    // Remove import lines: import ... from '...';
+    .replace(/^import\s+[\s\S]*?from\s+['"][^'"]+['"];?\r?\n?/gm, '')
+    // Replace "export const / let / var / function / class" with declaration
+    .replace(/^export\s+(const|let|var|function|class)\s+/gm, '$1 ')
+    // Replace "export default" if any
+    .replace(/^export\s+default\s+/gm, '')
+    // Remove isolated named export blocks: export { ... };
+    .replace(/^export\s*\{[\s\S]*?\};?\r?\n?/gm, '')
+    .trim();
+}
+
 function build() {
   console.log('[Build] Verifying directory structure...');
   ensureDirectories();
 
-  // If server entry point exists, assemble full worker. Otherwise create baseline scaffold.
-  const serverWorkerPath = path.join(srcDir, 'server', 'worker.js');
-  let workerContent = '';
+  // Read modular source files
+  const constantsCode = fs.readFileSync(path.join(srcDir, 'data', 'constants.js'), 'utf8');
+  const gameDataCode = fs.readFileSync(path.join(srcDir, 'data', 'game-data.js'), 'utf8');
+  const spritesCode = fs.readFileSync(path.join(srcDir, 'client', 'sprites.js'), 'utf8');
+  const audioCode = fs.readFileSync(path.join(srcDir, 'client', 'audio.js'), 'utf8');
+  const inputCode = fs.readFileSync(path.join(srcDir, 'client', 'input.js'), 'utf8');
+  const rendererCode = fs.readFileSync(path.join(srcDir, 'client', 'renderer.js'), 'utf8');
+  const uiCode = fs.readFileSync(path.join(srcDir, 'client', 'ui.js'), 'utf8');
+  const appCode = fs.readFileSync(path.join(srcDir, 'client', 'app.js'), 'utf8');
+  const stylesCode = fs.readFileSync(path.join(srcDir, 'client', 'styles.js'), 'utf8');
 
-  if (fs.existsSync(serverWorkerPath)) {
-    console.log('[Build] Compiling worker from src/server/worker.js...');
-    workerContent = fs.readFileSync(serverWorkerPath, 'utf8');
-  } else {
-    console.log('[Build] Creating baseline worker.js template...');
-    workerContent = `// QUEST: Kentucky — Standalone Cloudflare Worker
+  // Verify no source file exceeds MAX_LINES
+  const sourceFiles = [
+    { name: 'constants.js', code: constantsCode },
+    { name: 'game-data.js', code: gameDataCode },
+    { name: 'sprites.js', code: spritesCode },
+    { name: 'audio.js', code: audioCode },
+    { name: 'input.js', code: inputCode },
+    { name: 'renderer.js', code: rendererCode },
+    { name: 'ui.js', code: uiCode },
+    { name: 'app.js', code: appCode },
+    { name: 'styles.js', code: stylesCode },
+  ];
+
+  for (const file of sourceFiles) {
+    const lines = file.code.split('\n').length;
+    if (lines > MAX_LINES) {
+      throw new Error(`[Build Error] Source file ${file.name} exceeds ${MAX_LINES} lines (${lines} lines)!`);
+    }
+  }
+
+  // Assemble the inlined browser client script
+  const clientBundle = [
+    '/* --- CONSTANTS & CONFIG --- */',
+    stripModules(constantsCode),
+    '/* --- GAME DATA & GENERATORS --- */',
+    stripModules(gameDataCode),
+    '/* --- PROCEDURAL SPRITES & ICONS --- */',
+    stripModules(spritesCode),
+    '/* --- PROCEDURAL AUDIO SYNTHESIZER --- */',
+    stripModules(audioCode),
+    '/* --- DUAL KEYBOARD & TOUCH INPUT --- */',
+    stripModules(inputCode),
+    '/* --- CANVAS 2D RENDERER --- */',
+    stripModules(rendererCode),
+    '/* --- SEMANTIC UI OVERLAY --- */',
+    stripModules(uiCode),
+    '/* --- APPLICATION ORCHESTRATOR --- */',
+    stripModules(appCode),
+  ].join('\n\n');
+
+  // Compile standalone worker.js
+  const workerTemplate = `// QUEST: Kentucky — Standalone Cloudflare Worker
 // GENERATED ARTIFACT — DO NOT EDIT DIRECTLY. Source files are in src/
 // Target: Copy-paste to Cloudflare Workers Quick Edit or deploy via Wrangler.
+
+${stripModules(constantsCode)}
+
+${stripModules(stylesCode)}
+
+export function createManifest() {
+  const svgIcon192 = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192"><rect width="192" height="192" rx="36" fill="' + encodeURIComponent(PALETTE.BG_DARK) + '"/><polygon points="96 28 156 64 156 128 96 164 36 128 36 64" fill="' + encodeURIComponent(PALETTE.SURFACE) + '" stroke="' + encodeURIComponent(PALETTE.BORDER_FOCUS) + '" stroke-width="8"/><circle cx="96" cy="96" r="32" fill="' + encodeURIComponent(PALETTE.MATH) + '"/><polygon points="96 74 114 108 78 108" fill="' + encodeURIComponent(PALETTE.GOLD) + '"/></svg>';
+
+  const svgIcon512 = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512"><rect width="512" height="512" rx="96" fill="' + encodeURIComponent(PALETTE.BG_DARK) + '"/><polygon points="256 74 416 170 416 342 256 438 96 342 96 170" fill="' + encodeURIComponent(PALETTE.SURFACE) + '" stroke="' + encodeURIComponent(PALETTE.BORDER_FOCUS) + '" stroke-width="20"/><circle cx="256" cy="256" r="86" fill="' + encodeURIComponent(PALETTE.MATH) + '"/><polygon points="256 196 304 290 208 290" fill="' + encodeURIComponent(PALETTE.GOLD) + '"/></svg>';
+
+  return {
+    name: "QUEST: Kentucky — Governor's Cup RPG",
+    short_name: "QUEST: KY",
+    description: "Browser RPG for grades 6-8 preparing for Kentucky Governor's Cup competition",
+    start_url: "/",
+    display: "standalone",
+    orientation: "any",
+    theme_color: PALETTE.BG_DARK,
+    background_color: PALETTE.BG_DARK,
+    icons: [
+      {
+        src: svgIcon192,
+        sizes: "192x192",
+        type: "image/svg+xml",
+        purpose: "any maskable",
+      },
+      {
+        src: svgIcon512,
+        sizes: "512x512",
+        type: "image/svg+xml",
+        purpose: "any maskable",
+      },
+    ],
+  };
+}
+
+export function createServiceWorker() {
+  return \`// Service Worker — Offline Shell & Asset Cache
+const CACHE_NAME = 'quest-ky-shell-v1';
+const SHELL_URLS = ['/', '/manifest.webmanifest'];
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_URLS))
+  );
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
+      )
+    )
+  );
+  self.clients.claim();
+});
+
+self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return;
+  const url = new URL(event.request.url);
+
+  if (url.pathname === '/' || url.pathname === '/manifest.webmanifest') {
+    event.respondWith(
+      caches.match(event.request).then((cachedResponse) => {
+        const fetchPromise = fetch(event.request).then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+          }
+          return networkResponse;
+        }).catch(() => cachedResponse);
+        return cachedResponse || fetchPromise;
+      })
+    );
+  }
+});\`;
+}
+
+const CLIENT_BUNDLE = ${JSON.stringify(clientBundle)};
+
+export function createHtmlShell() {
+  return \`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="\${PALETTE.BG_DARK}">
+  <meta name="description" content="QUEST: Kentucky — Governor's Cup Middle Grades RPG">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <title>QUEST: Kentucky — Governor's Cup RPG</title>
+  <style>
+\${GAME_CSS}
+  </style>
+</head>
+<body>
+  <main id="app-root">
+    <div id="ui-root"></div>
+    <div role="region" aria-label="Kentucky World Viewport" class="canvas-container">
+      <canvas id="game-canvas" width="\${VIEWPORT.LOGICAL_WIDTH}" height="\${VIEWPORT.LOGICAL_HEIGHT}"></canvas>
+    </div>
+  </main>
+
+  <script type="module">
+\${CLIENT_BUNDLE}
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+      });
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const canvas = document.getElementById('game-canvas');
+      const uiRoot = document.getElementById('ui-root');
+      if (canvas && uiRoot && typeof GameApp !== 'undefined') {
+        const app = new GameApp(canvas, uiRoot);
+        app.start();
+        window.__QUEST_APP__ = app;
+      }
+    });
+  </script>
+</body>
+</html>\`;
+}
 
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
+    const securityHeaders = {
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+      'Referrer-Policy': 'strict-origin-when-cross-origin',
+    };
+
     if (url.pathname === '/api/health') {
-      return new Response(JSON.stringify({ status: 'ok', game: 'QUEST: Kentucky' }), {
-        headers: { 'Content-Type': 'application/json' },
+      return new Response(JSON.stringify({
+        status: 'ok',
+        game: 'QUEST: Kentucky',
+        gradeBand: '6-8',
+        phase: 1,
+        mode: 'guest-first',
+      }), {
+        headers: {
+          'Content-Type': 'application/json',
+          ...securityHeaders,
+        },
       });
     }
 
-    // Default HTML shell response
-    const html = \`<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>QUEST: Kentucky</title>
-  <style>
-    body { margin: 0; background: #0F172A; color: #F8FAFC; font-family: system-ui, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; }
-  </style>
-</head>
-<body>
-  <h1>QUEST: Kentucky (Ready for Phase 1)</h1>
-</body>
-</html>\`;
+    if (url.pathname === '/api/regions') {
+      return new Response(JSON.stringify({
+        regions: Object.values(SUBJECTS),
+      }), {
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'public, max-age=3600',
+          ...securityHeaders,
+        },
+      });
+    }
 
+    if (url.pathname === '/api/session') {
+      const guestId = (crypto && crypto.randomUUID) ? crypto.randomUUID() : 'guest_' + Math.random().toString(36).substring(2, 10);
+      return new Response(JSON.stringify({
+        guestId,
+        gradeBand: '6-8',
+        authenticated: false,
+      }), {
+        headers: {
+          'Content-Type': 'application/json',
+          ...securityHeaders,
+        },
+      });
+    }
+
+    if (url.pathname === '/manifest.webmanifest' || url.pathname === '/manifest.json') {
+      return new Response(JSON.stringify(createManifest()), {
+        headers: {
+          'Content-Type': 'application/manifest+json; charset=utf-8',
+          'Cache-Control': 'public, max-age=86400',
+          ...securityHeaders,
+        },
+      });
+    }
+
+    if (url.pathname === '/sw.js') {
+      return new Response(createServiceWorker(), {
+        headers: {
+          'Content-Type': 'application/javascript; charset=utf-8',
+          'Cache-Control': 'no-cache',
+          ...securityHeaders,
+        },
+      });
+    }
+
+    const html = createHtmlShell();
     return new Response(html, {
-      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+      headers: {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'public, max-age=3600',
+        ...securityHeaders,
+      },
     });
   },
 };
 `;
-  }
 
   const banner = `/**
  * QUEST: Kentucky — Cloudflare Worker Deployment Artifact
@@ -85,8 +320,15 @@ export default {
  * Source code lives under /src. Edit in src/ and run "npm run build".
  */\n\n`;
 
-  fs.writeFileSync(outputFile, banner + workerContent, 'utf8');
-  console.log(`[Build] Successfully generated: ${outputFile}`);
+  const finalOutput = banner + workerTemplate;
+  const totalLines = finalOutput.split('\n').length;
+
+  if (totalLines > MAX_LINES) {
+    throw new Error(`[Build Error] Generated worker.js exceeds ${MAX_LINES} lines (${totalLines} lines)!`);
+  }
+
+  fs.writeFileSync(outputFile, finalOutput, 'utf8');
+  console.log(`[Build] Successfully generated: ${outputFile} (${totalLines} lines, well within ${MAX_LINES} budget)`);
 }
 
 build();
