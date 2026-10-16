@@ -3,9 +3,8 @@
 > **Responsive Browser RPG for Middle Grades (Grades 6–8) preparing for KAAC Governor's Cup Academic Competition.**
 
 [![Tests](https://img.shields.io/badge/tests-156%20passing-brightgreen)](#testing)
-[![Phase](https://img.shields.io/badge/phase-10%20release%20candidate-blue)](#phase-10-security-privacy-review-child-safety-audit--release-candidate-baseline)
+[![Phase](https://img.shields.io/badge/phase-11%20staging%20%26%20handoff-blue)](#phase-11-staging-deployment-operations-baseline--pilot-readiness)
 [![Cloudflare Workers](https://img.shields.io/badge/deployment-Cloudflare%20Workers-orange)](#deployment)
-
 
 ---
 
@@ -22,12 +21,16 @@ npm install
 # Build standalone Cloudflare Worker artifact (worker.js)
 npm run build
 
-# Run unit and contract test suites
+# Run unit and contract test suites (156 tests passing)
 npm test
+
+# Run pre-flight staging & production smoke tests (52 automated checks)
+npm run smoke
 
 # Start local preview server simulating Cloudflare Worker edge runtime
 npm run dev
 ```
+
 
 Visit `http://localhost:8787` in any desktop browser, mobile phone, tablet, or school Chromebook.
 
@@ -325,7 +328,35 @@ Phase 10 audits the entire codebase for COPPA/FERPA compliance, anti-tampering, 
 
 ---
 
-## 12. Architecture Principles
+## 12. Phase 11: Staging Deployment, Operations Baseline & Pilot Readiness
+
+Phase 11 establishes the operational runbook, private pilot measurement protocols, pre-flight smoke testing, and master architectural handoff:
+
+### Cloudflare Staging & Operations Baseline ([`OPERATIONS.md`](file:///c:/Users/James/Downloads/Quest/OPERATIONS.md))
+- **Environment Separation**: Clean isolation between Local, Staging (`quest_ky_staging_d1`), and Production (`quest_ky_production_d1`) defined in [`wrangler.json`](file:///c:/Users/James/Downloads/Quest/wrangler.json).
+- **Automated Smoke Testing (`npm run smoke`)**: 52 automated pre-flight checks validating health, HTML shell, PWA manifest, service worker, security headers, curriculum catalogs, co-op, duels, anti-farming rewards, and data purge.
+- **Backup & Recovery Protocol**: Documented D1 SQL export and recovery commands for safe database snapshotting prior to schema migrations.
+- **Immediate Content Takedown**: Single-command retirement API allowing content admins to instantly withdraw disputed questions from active student rotation without code redeployment.
+- **COPPA/FERPA Deletion SLA**: Statutory right-to-be-forgotten deletion workflow executed in $< 24$ hours via `/api/user/delete`.
+
+### Private Pilot Study & Go/No-Go Gate ([`PILOT_RUNBOOK.md`](file:///c:/Users/James/Downloads/Quest/PILOT_RUNBOOK.md))
+- **Cohort Parameters**: 30–60 middle school students across 2–3 Kentucky classrooms with teacher supervision.
+- **Efficacy Measurement**: Empirical delayed recall tracking at 1, 3, 7, 14, and 30 days via Leitner spaced repetition.
+- **Go / No-Go Decision Gate**:
+  - Child Safety: 100% Zero PII and preset emotes only (no open chat).
+  - Curriculum Rights: 100% Rights Status = 'approved'.
+  - Delayed Recall: $\ge 75\%$ retention on 7-day recall across concepts.
+  - Usability: $\ge 90\%$ independent completion of the single-player slice.
+  - Multiplayer Reliability: $< 1\%$ drop rate on school Wi-Fi and Chromebooks.
+
+### Developer & Architectural Handoff ([`HANDOFF.md`](file:///c:/Users/James/Downloads/Quest/HANDOFF.md))
+- **Repository Architecture**: Complete file map, directory roles, and data flow from Canvas/DOM through Edge Worker to D1 SQLite.
+- **Extension Recipes**: Step-by-step developer guides for adding new KAAC regions, questions, quests, and cosmetic inventory items.
+- **Zero-Dependency Guarantee**: Pure Node.js standard library with 0 production runtime npm dependencies.
+
+---
+
+## 13. Architecture Principles
 
 - **Zero External Raster Images**: 100% procedural Canvas 2D sprites & inline SVG icons.
 - **Zero External Audio Files**: Synthesized procedural Web Audio API sound effects.

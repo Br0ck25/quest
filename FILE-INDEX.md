@@ -16,12 +16,16 @@
 | [`PWA.md`](file:///c:/Users/James/Downloads/Quest/PWA.md) | Progressive Web App specification, offline caching, and manifest requirements. |
 | [`HTML_LIVING_STANDARD.md`](file:///c:/Users/James/Downloads/Quest/HTML_LIVING_STANDARD.md) | WHATWG HTML syntax rules (no `<div />`), accessible landmarks, and boolean attributes. |
 | [`AI_AGENTS.md`](file:///c:/Users/James/Downloads/Quest/AI_AGENTS.md) | Quick reference cheat sheet for AI pair programming sessions. |
-| [`CHANGELOG.md`](file:///c:/Users/James/Downloads/Quest/CHANGELOG.md) | Chronological log of migrations, features, and governance updates. |
-| [`package.json`](file:///c:/Users/James/Downloads/Quest/package.json) | Node package configuration with build, test, and dev scripts. |
-| [`wrangler.json`](file:///c:/Users/James/Downloads/Quest/wrangler.json) | Cloudflare Worker configuration targeting generated worker.js artifact. |
+| [`OPERATIONS.md`](file:///c:/Users/James/Downloads/Quest/OPERATIONS.md) | Cloudflare staging deployment, D1 migration runbook, backups, rollback, and purge SLA. |
+| [`PILOT_RUNBOOK.md`](file:///c:/Users/James/Downloads/Quest/PILOT_RUNBOOK.md) | Private pilot study protocol, 1/7/14/30-day delayed recall metrics, and go/no-go gate. |
+| [`HANDOFF.md`](file:///c:/Users/James/Downloads/Quest/HANDOFF.md) | Master architectural handoff, folder map, extension recipes, and governance invariants. |
+| [`package.json`](file:///c:/Users/James/Downloads/Quest/package.json) | Node package configuration with build, test, smoke, and dev scripts. |
+| [`wrangler.json`](file:///c:/Users/James/Downloads/Quest/wrangler.json) | Cloudflare Worker configuration with staging and production D1 database bindings. |
 | [`.gitignore`](file:///c:/Users/James/Downloads/Quest/.gitignore) | Git ignore list for dependencies, Wrangler artifacts, and temp files. |
 | [`scripts/build.js`](file:///c:/Users/James/Downloads/Quest/scripts/build.js) | Bundler script that compiles modular `src/` into the standalone `worker.js`. |
 | [`scripts/dev-server.js`](file:///c:/Users/James/Downloads/Quest/scripts/dev-server.js) | Local preview HTTP server simulating the Cloudflare Worker fetch runtime. |
+| [`scripts/smoke-test.js`](file:///c:/Users/James/Downloads/Quest/scripts/smoke-test.js) | Automated 52-point pre-flight staging and production smoke test suite. |
+
 | [`migrations/0000_complete_schema.sql`](file:///c:/Users/James/Downloads/Quest/migrations/0000_complete_schema.sql) | D1 SQL unified schema: complete database schema across all phases (Phases 1–6). |
 | [`migrations/0001_initial_schema.sql`](file:///c:/Users/James/Downloads/Quest/migrations/0001_initial_schema.sql) | D1 SQL migration: pseudonymous users, questions, attempts, mastery, ledger, and inventory. |
 | [`migrations/0002_progression_and_rewards.sql`](file:///c:/Users/James/Downloads/Quest/migrations/0002_progression_and_rewards.sql) | D1 SQL migration: user progression tracking and quest completion records. |
