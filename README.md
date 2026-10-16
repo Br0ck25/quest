@@ -2,8 +2,8 @@
 
 > **Responsive Browser RPG for Middle Grades (Grades 6–8) preparing for KAAC Governor's Cup Academic Competition.**
 
-[![Tests](https://img.shields.io/badge/tests-81%20passing-brightgreen)](#testing)
-[![Phase](https://img.shields.io/badge/phase-4%20D1%20persistence%20%26%20spaced%20repetition-blue)](#phase-4-d1-persistence-attempt-history-and-spaced-repetition)
+[![Tests](https://img.shields.io/badge/tests-103%20passing-brightgreen)](#testing)
+[![Phase](https://img.shields.io/badge/phase-5%20progression%20%26%20rewards-blue)](#phase-5-progression-cosmetic-rewards-and-anti-farming-controls)
 [![Cloudflare Workers](https://img.shields.io/badge/deployment-Cloudflare%20Workers-orange)](#deployment)
 
 ---
@@ -130,7 +130,34 @@ Phase 4 establishes persistent relational tracking, tamper-resistant attempt aud
 
 ---
 
-## 6. Architecture Principles
+## 6. Phase 5: Progression, Cosmetic Rewards & Anti-Farming Controls
+
+Phase 5 establishes server-authoritative level curves, non-pay-to-win cosmetic economy, starter companion, and anti-farming diminishing returns:
+
+### Progression Engine & Level Curves (`src/data/progression.js`)
+- **Adventure XP vs Concept Mastery**: Player levels reflect adventure milestones and quest completions, while curriculum mastery remains strictly tracked in spaced repetition records.
+- **Quadratic Level Curve**: Cumulative threshold formula $50 \times (L - 1) \times L$ (Level 1: 0 XP, Level 2: 100 XP, Level 3: 300 XP, Level 4: 600 XP, Level 5: 1000 XP) capped at Level 50.
+- **Starter Companion**: Procedural *Kentucky Cardinal Fledgling* (`companion_cardinal`, state bird of Kentucky) granted automatically to every young adventurer.
+
+### Child-Safe Cosmetic Economy & Anti-Farming Protections
+- **Strict Non-Negotiables**: Zero real-money microtransactions, zero loot boxes, zero pay-to-win stat advantages, zero trading (100% COPPA/FERPA compliant).
+- **Anti-Farming Diminishing Returns**:
+  - 1st correct answer in 24h: 100% reward (15 XP / 5 coins unassisted; 5 XP / 1 coin assisted).
+  - 2nd correct answer in 24h: 50% reward (8 XP / 2 coins unassisted; 2 XP / 0 coins assisted).
+  - 3rd+ repeated correct answer in 24h: minimal XP clamp (1 XP, 0 coins) preventing automated grinding.
+- **Anti-Negative Balance Constraint**: Transactions that would produce negative balances are rejected.
+- **Idempotent Rewards**: Duplicate attempts or double quest claim submissions are cached without duplicate rewards.
+
+### Phase 5 API Endpoints
+- `GET /api/progression`: Server-authoritative level, XP, coins, and equipped companion.
+- `GET /api/inventory`: Owned equipment, companion, and cosmetic catalog with prices.
+- `POST /api/inventory/equip`: Equip / unequip owned items.
+- `POST /api/inventory/buy`: Purchase cosmetic items using earned in-game coins.
+- `POST /api/quests/claim`: Server-authoritative, idempotent quest reward claiming.
+
+---
+
+## 7. Architecture Principles
 
 - **Zero External Raster Images**: 100% procedural Canvas 2D sprites & inline SVG icons.
 - **Zero External Audio Files**: Synthesized procedural Web Audio API sound effects.

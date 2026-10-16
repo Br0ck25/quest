@@ -163,5 +163,38 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
     - Added 10 unit tests for intervals, assisted answers, streak resets, multi-question verification, and `DatabaseAdapter`.
     - Added contract tests for `/api/progress`, `/api/review/due`, and Phase 4 answer evaluation.
     - Total test suite expanded from 69 to 81 passing tests (0 failures across 8 test suites).
+- **Phase 5: Progression, Cosmetic Rewards & Anti-Farming Controls**:
+  - **D1 Database Schema Expansion (`migrations/0002_progression_and_rewards.sql`)**:
+    - Added `user_progression` table tracking server-authoritative level, adventure XP, equipped companion, and timestamps.
+    - Added `user_quests` table tracking quest completion status and reward claim timestamps.
+  - **Progression & Anti-Farming Engine (`src/data/progression.js`)**:
+    - Implemented quadratic level curve $50 \times (L - 1) \times L$ up to level cap 50.
+    - Separated gameplay/adventure XP from academic spaced repetition concept mastery.
+    - Built anti-farming diminishing return algorithm: 1st correct answer in 24h yields 100% rewards, 2nd yields 50%, and 3rd+ activates an anti-farming clamp (1 XP, 0 coins).
+    - Designed procedural starter companion: *Kentucky Cardinal Fledgling* (`companion_cardinal`).
+    - Established cosmetic-only catalog: zero microtransactions, zero loot boxes, zero pay-to-win stat boosts, and zero player trading.
+    - Added mathematical economic balance simulation (`simulateProgressionEconomy`) verifying stability, pacing, and absence of negative balances.
+  - **Procedural Visuals & Icons (`src/client/sprites.js`)**:
+    - Added 8x8 procedural pixel sprite matrix for the Kentucky Cardinal companion (`COMPANION_SPRITES.cardinal`).
+    - Added inline SVG icons for cardinal, cap, tome, and cloak cosmetics.
+  - **Unified Relational Persistence & Wallet Ledger (`src/server/db.js`)**:
+    - Added `getProgression`, `addXp`, and level-up detection.
+    - Added `getWalletBalance` and `addWalletTransaction` with anti-negative balance constraint and idempotency key checks.
+    - Added `getUserInventory`, `equipItem`, and `purchaseCosmetic` verifying catalog validity and balances.
+    - Added `claimQuestReward` enforcing eligibility, awarding XP/gold, and preventing double claims.
+    - Integrated question attempt evaluation with anti-farming rewards in `processAnswerAttempt`.
+  - **Edge Worker API Endpoints (`src/server/worker.js`, `scripts/build.js`)**:
+    - `/api/health` updated to Phase 5 and `progression-and-rewards` mode.
+    - `GET /api/progression`: returns player level, XP, coins, and equipped companion.
+    - `GET /api/inventory`: returns owned inventory and cosmetic catalog.
+    - `POST /api/inventory/equip`: equips/unequips owned cosmetic items.
+    - `POST /api/inventory/buy`: purchases cosmetic item with earned in-game coins.
+    - `POST /api/quests/claim`: server-authoritative quest reward claiming.
+  - **Testing Integrity & Line Budget**:
+    - Unit tests for level curves, anti-farming rewards, cosmetic catalog, and database transactions (`tests/unit/progression.test.js`).
+    - Contract tests for new endpoints in `tests/contract/worker.test.js`.
+    - Total test suite expanded from 81 to 103 passing tests (0 failures across 12 test suites).
+    - Standalone generated artifact [`worker.js`](file:///c:/Users/James/Downloads/Quest/worker.js) compiles to 1,881 lines (comfortably below 2,000 line ceiling).
+
 
 

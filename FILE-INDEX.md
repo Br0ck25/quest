@@ -23,8 +23,10 @@
 | [`scripts/build.js`](file:///c:/Users/James/Downloads/Quest/scripts/build.js) | Bundler script that compiles modular `src/` into the standalone `worker.js`. |
 | [`scripts/dev-server.js`](file:///c:/Users/James/Downloads/Quest/scripts/dev-server.js) | Local preview HTTP server simulating the Cloudflare Worker fetch runtime. |
 | [`migrations/0001_initial_schema.sql`](file:///c:/Users/James/Downloads/Quest/migrations/0001_initial_schema.sql) | D1 SQL migration: pseudonymous users, questions, attempts, mastery, ledger, and inventory. |
+| [`migrations/0002_progression_and_rewards.sql`](file:///c:/Users/James/Downloads/Quest/migrations/0002_progression_and_rewards.sql) | D1 SQL migration: user progression tracking and quest completion records. |
 | [`src/data/constants.js`](file:///c:/Users/James/Downloads/Quest/src/data/constants.js) | Centralized project constants (dimensions, palette tokens, subject mappings, intervals). |
 | [`src/data/game-data.js`](file:///c:/Users/James/Downloads/Quest/src/data/game-data.js) | Child-safe pseudonymous handle generator, starter quests, and starter inventory. |
+| [`src/data/progression.js`](file:///c:/Users/James/Downloads/Quest/src/data/progression.js) | Level curve, anti-farming question rewards, cosmetic catalog, and economic balance simulation. |
 | [`src/data/questions.js`](file:///c:/Users/James/Downloads/Quest/src/data/questions.js) | Synthetic KAAC Middle Grades question bank and 5-encounter dungeon definition. |
 | [`src/data/question-schema.js`](file:///c:/Users/James/Downloads/Quest/src/data/question-schema.js) | Question schema validation, rights gate enforcement, duplicate detection, and import workflow. |
 | [`src/data/spaced-repetition.js`](file:///c:/Users/James/Downloads/Quest/src/data/spaced-repetition.js) | Spaced repetition review scheduler, interval advancement [1,3,7,14,30]d, and mastery engine. |
@@ -40,6 +42,7 @@
 | [`src/server/worker.js`](file:///c:/Users/James/Downloads/Quest/src/server/worker.js) | Cloudflare Worker edge handler serving HTML shell, PWA manifest, service worker, and API. |
 | [`tests/unit/constants.test.js`](file:///c:/Users/James/Downloads/Quest/tests/unit/constants.test.js) | Unit test validating centralized constants against design system and curriculum specifications. |
 | [`tests/unit/game-data.test.js`](file:///c:/Users/James/Downloads/Quest/tests/unit/game-data.test.js) | Unit test validating pseudonymous handle generation, starter quests, and default profile. |
+| [`tests/unit/progression.test.js`](file:///c:/Users/James/Downloads/Quest/tests/unit/progression.test.js) | Unit test validating level curves, anti-farming rewards, cosmetic catalog, and wallet ledger. |
 | [`tests/unit/questions.test.js`](file:///c:/Users/James/Downloads/Quest/tests/unit/questions.test.js) | Unit test validating synthetic question bank schema, answer key secrecy, and encounter flow. |
 | [`tests/unit/question-schema.test.js`](file:///c:/Users/James/Downloads/Quest/tests/unit/question-schema.test.js) | Unit test validating question schema, rights gate, duplicate prompt detection, and import pipeline. |
 | [`tests/unit/spaced-repetition.test.js`](file:///c:/Users/James/Downloads/Quest/tests/unit/spaced-repetition.test.js) | Unit test validating spaced review scheduling, assisted answers, mastery, and DB persistence. |

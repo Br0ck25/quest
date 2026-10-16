@@ -3,6 +3,7 @@ import { STARTER_QUESTS } from '../data/game-data.js';
 import { SYNTHETIC_QUESTIONS, DUNGEON_ENCOUNTERS, sanitizeQuestionForClient } from '../data/questions.js';
 import { validateQuestion, detectDuplicates, importQuestions } from '../data/question-schema.js';
 import { computeSubjectProgress, getDueReviews } from '../data/spaced-repetition.js';
+import { COSMETIC_CATALOG, STARTER_COMPANION } from '../data/progression.js';
 import { DatabaseAdapter } from './db.js';
 import { GAME_CSS } from '../client/styles.js';
 
@@ -10,8 +11,6 @@ import { GAME_CSS } from '../client/styles.js';
 const QUESTION_CATALOG = [...SYNTHETIC_QUESTIONS];
 const IDEMPOTENCY_STORE = new Map();
 const defaultDb = new DatabaseAdapter();
-
-
 
 export function createManifest() {
   const svgIcon192 = `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192"><rect width="192" height="192" rx="36" fill="${PALETTE.BG_DARK}"/><polygon points="96 28 156 64 156 128 96 164 36 128 36 64" fill="${PALETTE.SURFACE}" stroke="${PALETTE.BORDER_FOCUS}" stroke-width="8"/><circle cx="96" cy="96" r="32" fill="${PALETTE.MATH}"/><polygon points="96 74 114 108 78 108" fill="${PALETTE.GOLD}"/></svg>`;
@@ -150,20 +149,15 @@ export default {
       'Referrer-Policy': 'strict-origin-when-cross-origin',
     };
 
-    // Health check endpoint (Phase 4)
-    if (url.pathname === '/api/health') {
-      return new Response(JSON.stringify({
-        status: 'ok',
-        game: 'QUEST: Kentucky',
-        gradeBand: '6-8',
-        phase: 4,
-        mode: 'd1-persistence-and-spaced-repetition',
-      }), {
-        headers: {
-          'Content-Type': 'application/json',
-          ...securityHeaders,
-        },
+    const json = (data, status = 200) =>
+      new Response(JSON.stringify(data), {
+        status,
+        headers: { 'Content-Type': 'application/json', ...securityHeaders },
       });
+
+    // Health check endpoint (Phase 5)
+    if (url.pathname === '/api/health') {
+      return json({ status: 'ok', game: 'QUEST: Kentucky', gradeBand: '6-8', phase: 5, mode: 'progression-and-rewards' });
     }
 
     // Public Question Delivery endpoint (Sanitized, Rights-Gated)
@@ -182,11 +176,7 @@ export default {
         count: approvedQuestions.length,
         questions: approvedQuestions.map(sanitizeQuestionForClient),
       }), {
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'public, max-age=600',
-          ...securityHeaders,
-        },
+        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=600', ...securityHeaders },
       });
     }
 
@@ -194,17 +184,10 @@ export default {
     if (url.pathname === '/api/questions/validate' && request.method === 'POST') {
       try {
         const body = await request.json();
-        const items = Array.isArray(body?.questions)
-          ? body.questions
-          : body?.question
-            ? [body.question]
-            : null;
+        const items = Array.isArray(body?.questions) ? body.questions : body?.question ? [body.question] : null;
 
         if (!items) {
-          return new Response(JSON.stringify({ error: 'Payload must include question object or questions array' }), {
-            status: 400,
-            headers: { 'Content-Type': 'application/json', ...securityHeaders },
-          });
+          return json({ error: 'Payload must include question object or questions array' }, 400);
         }
 
         const results = items.map((item) => {
@@ -219,38 +202,27 @@ export default {
           };
         });
 
-        const allValid = results.every((r) => r.valid);
-        return new Response(JSON.stringify({
-          valid: allValid,
+        return json({
+          valid: results.every((r) => r.valid),
+          count: results.length,
           results,
-        }), {
-          headers: { 'Content-Type': 'application/json', ...securityHeaders },
         });
       } catch {
-        return new Response(JSON.stringify({ error: 'Invalid JSON payload' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json', ...securityHeaders },
-        });
+        return json({ error: 'Invalid JSON payload' }, 400);
       }
     }
 
-    // Authorized Content Reviewer Import Endpoint (Rights Gate Enforcement)
+    // Authorized Content Reviewer Question Import Endpoint
     if (url.pathname === '/api/questions/import' && request.method === 'POST') {
       const role = request.headers.get('x-reviewer-role');
       if (!role || (role !== 'reviewer' && role !== 'content_admin')) {
-        return new Response(JSON.stringify({ error: 'Unauthorized: Content reviewer role required' }), {
-          status: 403,
-          headers: { 'Content-Type': 'application/json', ...securityHeaders },
-        });
+        return json({ error: 'Unauthorized: Content reviewer role required' }, 403);
       }
 
       try {
         const body = await request.json();
         if (!body || !Array.isArray(body.questions)) {
-          return new Response(JSON.stringify({ error: 'Payload must contain a questions array' }), {
-            status: 400,
-            headers: { 'Content-Type': 'application/json', ...securityHeaders },
-          });
+          return json({ error: 'Payload must contain a questions array' }, 400);
         }
 
         const result = importQuestions(body.questions, QUESTION_CATALOG);
@@ -258,47 +230,30 @@ export default {
           QUESTION_CATALOG.push(...result.imported);
         }
 
-        return new Response(JSON.stringify({
+        return json({
           success: result.success,
           importedCount: result.imported.length,
           rejectedCount: result.rejected.length,
           imported: result.imported.map(sanitizeQuestionForClient),
           rejected: result.rejected,
           warnings: result.warnings,
-        }), {
-          headers: { 'Content-Type': 'application/json', ...securityHeaders },
         });
       } catch {
-        return new Response(JSON.stringify({ error: 'Invalid JSON payload' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json', ...securityHeaders },
-        });
+        return json({ error: 'Invalid JSON payload' }, 400);
       }
     }
 
     // KAAC Subject Realms metadata endpoint
     if (url.pathname === '/api/regions') {
-      return new Response(JSON.stringify({
-        regions: Object.values(SUBJECTS),
-      }), {
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'public, max-age=3600',
-          ...securityHeaders,
-        },
+      return new Response(JSON.stringify({ regions: Object.values(SUBJECTS) }), {
+        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=3600', ...securityHeaders },
       });
     }
 
     // Starter Quests endpoint
     if (url.pathname === '/api/quests') {
-      return new Response(JSON.stringify({
-        quests: STARTER_QUESTS,
-      }), {
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'public, max-age=3600',
-          ...securityHeaders,
-        },
+      return new Response(JSON.stringify({ quests: STARTER_QUESTS }), {
+        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=3600', ...securityHeaders },
       });
     }
 
@@ -310,21 +265,11 @@ export default {
         if (enc.questionId) {
           question = sanitizeQuestionForClient(questionMap.get(enc.questionId));
         }
-        return {
-          ...enc,
-          question,
-        };
+        return { ...enc, question };
       });
 
-      return new Response(JSON.stringify({
-        dungeon: 'The Verdant Sanctuary',
-        encounters: sanitizedEncounters,
-      }), {
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'public, max-age=3600',
-          ...securityHeaders,
-        },
+      return new Response(JSON.stringify({ dungeon: 'The Verdant Sanctuary', encounters: sanitizedEncounters }), {
+        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=3600', ...securityHeaders },
       });
     }
 
@@ -336,17 +281,7 @@ export default {
       const totalMastered = masteryList.filter((m) => m.isMastered).length;
       const activeDueCount = getDueReviews(masteryList, Date.now()).length;
 
-      return new Response(JSON.stringify({
-        userId,
-        totalMastered,
-        activeDueCount,
-        progress,
-      }), {
-        headers: {
-          'Content-Type': 'application/json',
-          ...securityHeaders,
-        },
-      });
+      return json({ userId, totalMastered, activeDueCount, progress });
     }
 
     // Spaced Repetition Due Reviews endpoint
@@ -363,17 +298,92 @@ export default {
         q.conceptIds.some((cid) => dueConceptIds.has(cid))
       );
 
-      return new Response(JSON.stringify({
+      return json({
         userId,
         count: dueRecords.length,
         dueConcepts: dueRecords,
         eligibleQuestions: eligibleQuestions.map(sanitizeQuestionForClient),
-      }), {
-        headers: {
-          'Content-Type': 'application/json',
-          ...securityHeaders,
-        },
       });
+    }
+
+    // Server-Authoritative User Progression Endpoint
+    if (url.pathname === '/api/progression' && request.method === 'GET') {
+      const userId = url.searchParams.get('userId') || request.headers.get('x-guest-id') || 'guest_default';
+      const progression = await db.getProgression(userId);
+      return json(progression);
+    }
+
+    // User Cosmetic Inventory & Shop Catalog Endpoint
+    if (url.pathname === '/api/inventory' && request.method === 'GET') {
+      const userId = url.searchParams.get('userId') || request.headers.get('x-guest-id') || 'guest_default';
+      const inventory = await db.getUserInventory(userId);
+      return json({ userId, inventory, cosmeticCatalog: COSMETIC_CATALOG });
+    }
+
+    // Equip / Unequip Cosmetic Item Endpoint
+    if (url.pathname === '/api/inventory/equip' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const { itemId, slot } = body || {};
+        const userId = body?.userId || request.headers.get('x-guest-id') || 'guest_default';
+
+        if (!itemId || !slot) {
+          return json({ error: 'itemId and slot are required' }, 400);
+        }
+
+        const result = await db.equipItem(userId, itemId, slot);
+        if (!result.success) {
+          return json({ error: result.error }, 400);
+        }
+
+        return json(result);
+      } catch {
+        return json({ error: 'Invalid JSON payload' }, 400);
+      }
+    }
+
+    // Purchase Cosmetic Item Endpoint
+    if (url.pathname === '/api/inventory/buy' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const { itemId, idempotencyKey } = body || {};
+        const userId = body?.userId || request.headers.get('x-guest-id') || 'guest_default';
+
+        if (!itemId) {
+          return json({ error: 'itemId is required' }, 400);
+        }
+
+        const result = await db.purchaseCosmetic({ userId, itemId, idempotencyKey, now: Date.now() });
+        if (!result.success) {
+          return json({ error: result.error }, 400);
+        }
+
+        return json(result);
+      } catch {
+        return json({ error: 'Invalid JSON payload' }, 400);
+      }
+    }
+
+    // Claim Quest Completion Reward Endpoint (Idempotent)
+    if (url.pathname === '/api/quests/claim' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const { questId, idempotencyKey } = body || {};
+        const userId = body?.userId || request.headers.get('x-guest-id') || 'guest_default';
+
+        if (!questId) {
+          return json({ error: 'questId is required' }, 400);
+        }
+
+        const result = await db.claimQuestReward({ userId, questId, idempotencyKey, now: Date.now() });
+        if (!result.success) {
+          return json({ error: result.error }, 400);
+        }
+
+        return json(result);
+      } catch {
+        return json({ error: 'Invalid JSON payload' }, 400);
+      }
     }
 
     // Server-Authoritative Answer Validation endpoint with D1 Persistence & Spaced Repetition
@@ -383,33 +393,22 @@ export default {
         const { questionId, selectedChoiceId, idempotencyKey, assisted } = body || {};
 
         if (idempotencyKey && IDEMPOTENCY_STORE.has(idempotencyKey)) {
-          return new Response(JSON.stringify(IDEMPOTENCY_STORE.get(idempotencyKey)), {
-            headers: { 'Content-Type': 'application/json', ...securityHeaders },
-          });
+          return json(IDEMPOTENCY_STORE.get(idempotencyKey));
         }
 
         const question = QUESTION_CATALOG.find((q) => q.id === questionId);
         if (!question) {
-          return new Response(JSON.stringify({ error: 'Question not found' }), {
-            status: 404,
-            headers: { 'Content-Type': 'application/json', ...securityHeaders },
-          });
+          return json({ error: 'Question not found' }, 404);
         }
 
         // Rights gate check: item must be active and approved to be answerable
         if (!question.active || question.rightsStatus !== 'approved') {
-          return new Response(JSON.stringify({ error: 'Question is not active or rights status is unapproved' }), {
-            status: 403,
-            headers: { 'Content-Type': 'application/json', ...securityHeaders },
-          });
+          return json({ error: 'Question is not active or rights status is unapproved' }, 403);
         }
 
         const validChoice = Array.isArray(question.choices) && question.choices.some((c) => c.id === selectedChoiceId);
         if (!validChoice) {
-          return new Response(JSON.stringify({ error: 'Invalid choice ID' }), {
-            status: 400,
-            headers: { 'Content-Type': 'application/json', ...securityHeaders },
-          });
+          return json({ error: 'Invalid choice ID' }, 400);
         }
 
         const userId = body?.userId || body?.sessionId || request.headers.get('x-guest-id') || 'guest_default';
@@ -427,30 +426,16 @@ export default {
           IDEMPOTENCY_STORE.set(idempotencyKey, verdict);
         }
 
-        return new Response(JSON.stringify(verdict), {
-          headers: { 'Content-Type': 'application/json', ...securityHeaders },
-        });
+        return json(verdict);
       } catch {
-        return new Response(JSON.stringify({ error: 'Invalid JSON payload' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json', ...securityHeaders },
-        });
+        return json({ error: 'Invalid JSON payload' }, 400);
       }
     }
 
     // Session endpoint (pseudonymous child-safe guest session)
     if (url.pathname === '/api/session') {
       const guestId = (crypto && crypto.randomUUID) ? crypto.randomUUID() : 'guest_' + Math.random().toString(36).substring(2, 10);
-      return new Response(JSON.stringify({
-        guestId,
-        gradeBand: '6-8',
-        authenticated: false,
-      }), {
-        headers: {
-          'Content-Type': 'application/json',
-          ...securityHeaders,
-        },
-      });
+      return json({ guestId, gradeBand: '6-8', authenticated: false });
     }
 
     // PWA Web App Manifest endpoint

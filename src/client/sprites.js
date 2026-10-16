@@ -88,6 +88,26 @@ export const NPC_SPRITES = {
 };
 
 /**
+ * 8x8 Procedural Companion Sprites (Kentucky Cardinal Fledgling).
+ */
+export const COMPANION_SPRITES = {
+  cardinal: {
+    palette: ['transparent', PALETTE.ERROR, PALETTE.GOLD, PALETTE.BG_DARK, PALETTE.PARCHMENT],
+    matrix: [
+      '00110000',
+      '01111000',
+      '11312200',
+      '11111000',
+      '01110000',
+      '01111100',
+      '00100100',
+      '00000000',
+    ],
+  },
+};
+
+
+/**
  * 8x8 Procedural Dungeon Enemy Sprites.
  */
 export const ENEMY_SPRITES = {
@@ -317,6 +337,14 @@ export function getSvgIcon(iconName, color = PALETTE.TEXT_PRIMARY, size = 20) {
       return `<svg ${common}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>`;
     case 'trophy':
       return `<svg ${common}><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17c0 .55-.45 1-1 1H8c-.55 0-1 .45-1 1v1h10v-1c0-.55-.45-1-1-1h-1c-.55 0-1-.45-1-1v-2.34"></path><path d="M6 4h12v7a6 6 0 0 1-12 0V4z"></path></svg>`;
+    case 'cardinal':
+      return `<svg ${common}><path d="M16 8l4-2-2 4 4 1-6 5-5-2-3 4-2-1 4-6-1-5 6 2z" fill="${color}" fill-opacity="0.25"></path><circle cx="15" cy="9" r="1.5" fill="${color}"></circle></svg>`;
+    case 'cap':
+      return `<svg ${common}><path d="M3 14c2-5 8-6 14-3l4 1-5 2H3z"></path><path d="M14 9a5 5 0 0 0-10 2"></path></svg>`;
+    case 'tome':
+      return `<svg ${common}><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path><line x1="8" y1="7" x2="16" y2="7"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>`;
+    case 'cloak':
+      return `<svg ${common}><path d="M6 4l6-2 6 2v6c0 6-6 10-6 10s-6-4-6-10V4z"></path><path d="M12 2v20"></path></svg>`;
     case 'close':
       return `<svg ${common}><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
     default:

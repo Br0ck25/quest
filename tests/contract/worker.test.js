@@ -14,8 +14,8 @@ test('Worker health route returns ok and phase status', async () => {
   assert.equal(data.status, 'ok');
   assert.equal(data.game, 'QUEST: Kentucky');
   assert.equal(data.gradeBand, '6-8');
-  assert.equal(data.phase, 4);
-  assert.equal(data.mode, 'd1-persistence-and-spaced-repetition');
+  assert.equal(data.phase, 5);
+  assert.equal(data.mode, 'progression-and-rewards');
 });
 
 test('Worker root returns semantic HTML with responsive canvas and UI root', async () => {
@@ -305,5 +305,93 @@ test('Worker serves spaced repetition due reviews endpoint (/api/review/due)', a
   assert.ok(Array.isArray(data.dueConcepts));
   assert.ok(Array.isArray(data.eligibleQuestions));
 });
+
+test('Worker serves player progression endpoint (/api/progression)', async () => {
+  const req = new Request('http://localhost/api/progression?userId=player_prog_contract_test');
+  const res = await worker.fetch(req, {}, {});
+  assert.equal(res.status, 200);
+
+  const data = await res.json();
+  assert.equal(data.userId, 'player_prog_contract_test');
+  assert.equal(data.level, 1);
+  assert.equal(data.xp, 0);
+  assert.equal(data.coins, 50);
+  assert.equal(data.equippedCompanionId, 'companion_cardinal');
+  assert.equal(data.nextLevelXp, 100);
+});
+
+test('Worker serves inventory and cosmetic catalog (/api/inventory)', async () => {
+  const req = new Request('http://localhost/api/inventory?userId=player_inv_contract_test');
+  const res = await worker.fetch(req, {}, {});
+  assert.equal(res.status, 200);
+
+  const data = await res.json();
+  assert.equal(data.userId, 'player_inv_contract_test');
+  assert.ok(Array.isArray(data.inventory));
+  assert.ok(Array.isArray(data.cosmeticCatalog));
+  assert.ok(data.inventory.some((i) => i.id === 'companion_cardinal'));
+});
+
+test('Worker equips cosmetic item (/api/inventory/equip)', async () => {
+  const req = new Request('http://localhost/api/inventory/equip', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      userId: 'player_inv_contract_test',
+      itemId: 'companion_cardinal',
+      slot: 'companion',
+    }),
+  });
+  const res = await worker.fetch(req, {}, {});
+  assert.equal(res.status, 200);
+
+  const data = await res.json();
+  assert.equal(data.success, true);
+  assert.equal(data.equipped, true);
+});
+
+test('Worker handles cosmetic purchase with gold (/api/inventory/buy)', async () => {
+  // First give coins or buy an item within balance (e.g. item_derby_cap cost 50, starter gold is 50)
+  const req = new Request('http://localhost/api/inventory/buy', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      userId: 'player_buy_test_' + Math.random().toString(36).substring(2, 6),
+      itemId: 'item_derby_cap',
+      idempotencyKey: 'buy_key_' + Math.random().toString(36).substring(2, 8),
+    }),
+  });
+  const res = await worker.fetch(req, {}, {});
+  assert.equal(res.status, 200);
+
+  const data = await res.json();
+  assert.equal(data.success, true);
+  assert.equal(data.purchasedItem.id, 'item_derby_cap');
+  assert.equal(data.newBalance, 0); // 50 - 50 = 0
+});
+
+test('Worker claims quest completion reward idempotently (/api/quests/claim)', async () => {
+  const userId = 'player_quest_claim_test_' + Math.random().toString(36).substring(2, 6);
+  const req = new Request('http://localhost/api/quests/claim', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      userId,
+      questId: 'quest_math_01',
+      idempotencyKey: 'claim_key_' + Math.random().toString(36).substring(2, 8),
+    }),
+  });
+  const res = await worker.fetch(req, {}, {});
+  assert.equal(res.status, 200);
+
+  const data = await res.json();
+  assert.equal(data.success, true);
+  assert.equal(data.rewardXp, 150);
+  assert.equal(data.rewardGold, 25);
+  assert.equal(data.xp, 150);
+  assert.equal(data.level, 2);
+  assert.equal(data.coins, 75); // 50 + 25 = 75
+});
+
 
 
